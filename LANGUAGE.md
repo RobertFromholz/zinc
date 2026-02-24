@@ -1,5 +1,92 @@
 # Zinc
 
+Zinc is a hobby programming language roughly inspired by a combination of Java and Rust.
+
+The scope of this document is to plan for how the language should behave. It is not a goal to determine the syntax
+of the language. It is also not a goal to delve into implementation-specific details, such as memory layout.
+
+A common thread throughout the design is uniformity. An eventual compiler or interpreter should need to implement as few
+edges cases or builtin methods as possible.
+
+As a result, much of the language is extendable. One should be able to, in code, replicate most if not all language
+features.
+
+## Objects
+
+Everything in Zinc is an object. This includes the original source code the intermediate steps during compilation.
+This automatically provides powerful tools for reflection. If everything is an object, we can call methods on
+everything, as long as we are able to retrieve the object.
+
+An object has a type and a value for each field in its type.
+
+## Types
+
+A type is also an object of type `Type`.
+
+Types are used to verify type safety. If type `V` is assignable to type `F` it means that a value of type `V` can be
+assigned to a field of type `F`.
+
+A type is by design not equivelent to a `Class`. A type can be thought of as an instance of a class, in the same
+way an object is an instance of a type. An object stores a type along with values representing its fields. A type stores
+a class along with values representing its constant fields.
+
+A type based on a class verifies type safety using its class and its constant fields. If another type is of the same
+class or of a superclass, and all constant types are themselves assignable, the type is assignable.
+
+However, there exists a variant of a type without any reference to a class. An anonymous type. An anonymous type defines
+constraints that must exist for another type to be assignable to it. This is similar to how an interface is defined,
+however, it does not require that the type inherits any specific class, only that it somewhere defines a set of specific
+methods.
+
+Both objects and types must be created from something else, whether it be a type or a class.
+
+## Class
+
+A class is an object of type `Class`.
+
+A class is declared in code. It can define inner elements: classes, methods, and fields.
+
+A class can define constant fields (see generics in other languages). They are referred to as constant fields because
+they are only required to be constant, that is known at compile-time. They can have any type. One could define a
+constant field to determine the maximum capacity of an array.
+
+An important question that arrises from constant fields being able to store any object: what happens if the object
+is modified?
+
+To resolve this problem, we would need to be able to store whether a field is mutable. A mutable reference to a constant
+field can, if so, never be retrieved. Any modification of an object requires a mutable reference. This is similar to
+Rust memory safety but without the requirement that only a single mutable reference exists at the same time.
+
+One could also argue that one should only store immutable types in constant fields. In what situation would you store
+a mutable type in a constant field?
+
+## Method
+
+A method is an object type `Method`.
+
+A method is declared in code. It can define parameters and a code block.
+
+A method can also abstain from having a code block, in which case it is considered an abstract method. Its parent class,
+as a result, also becomes an abstract class.
+
+A method can be static or an instance method. An instance method defines an argument `self` without any type.
+
+An instance method can be called either with a qualifying object or as a static method with the qualifying object as the
+first argument.
+
+A method can be defined to be constant. If so, the method can only reference constant fields and methods. 
+
+### Constructors
+
+Constructors are special methods declared in a class. They should define an argument `self`.
+
+* For a non-abstract class (a concrete class) the constructor is called as though a static method. A new object is
+  created automatically and given to the constructor.
+* For a concrete class the constructor can be called from a subclass as though an instance method on the `self` object
+  cast to this class.
+* For an abstract class the constructor is called as though an instance method on an object cast to this class. The
+  object cannot be called as though a static method, it must be given a `self` argument.
+
 ## Syntax
 
 A class, defined using the `class` keyword, consists of a name, an optional list of parents, and a list of child
