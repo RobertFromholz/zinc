@@ -1,0 +1,76 @@
+/// A file contains a list of elements.
+file ::= module elements;
+
+/// Any parameter declared in a module is constant.
+/// The name of the module must match the file name.
+module ::= 'module' parameters identifier ';'
+
+elements ::= element*
+
+element ::= class | function | field
+
+/// Any parameter declared in a class is constant.
+class ::= 'class' identifier parameters? inherits? '{' elements '}';
+
+inherits ::= ':' type (',' type)*
+
+function ::= 'constant'? 'function' identifier parameters '->' type block_expression
+
+/// A parameter list can be empty.
+/// The first argument can be a self_parameter *if* this a function declared inside a class.
+parameters ::= '(' ((self_parameter | parameter) (',' parameter)+)? ')'
+
+/// This parameter is of the type of the enclosing class.
+/// If a type is defined, it must be assignable to the enclosing class.
+/// A type can be defined to, for example, constrain the function to require a specific constant parameter.
+self_parameter ::= 'mutable'? 'self' (':' type)?
+
+/// A parameter has similar semantics to a field.
+parameter ::= 'constant'? 'mutable'? identifier ':' type
+
+/// A constant field cannot be mutable.
+/// A constant field must be initialized by a constant expression.
+field ::= 'constant'? 'mutable'? 'let' identifier ':' type '=' expression;
+
+/// A type is a constant expression that evaluates to a type.
+/// A class without parameters can be used as a type.
+/// A class with parameters must be called with all arguments.
+type ::= expression
+
+/// An expression is constant if it only references constant fields and functions.
+/// An element evaluates to an reference to that field.
+expression ::= element |
+               prefix_expression |
+               literal_expression |
+               path_expression |
+               call_expression |
+               parenthesized_expression |
+               block_expression
+
+literal_expression ::= integer
+
+prefix_expression ::= prefix_operator expression
+
+/// The dereference operator ('&') can be called on a value that implements 'Dereference'
+/// A reference to a field evaluates to the field. The field implements 'Dereference'.
+/// A value that implements 'Dereference' will automatically dereference to the value if used in a context
+/// that only the value can be used in. If both the field and it's value can be used, the dereference operator must
+/// be used to retrieve the value.
+prefix_operator ::= '&'
+
+/// The qualifier must overload the '::' operator.
+path_expression ::= (expression '::')? identifier
+
+call_expression ::= expression arguments
+
+arguments ::= '(' (expression (',' expression)*)? ')'
+
+parenthesized_expression ::= '(' expression ')'
+
+/// A block expression contains a sequence of expressions.
+/// The block expression yields the value of the last expression.
+/// If the block expression does not yield a value, it yields an object of type 'Empty'.
+/// If the block can be determined to never yield a value, it yields an object of type 'Never'.
+block_expression ::= '{' statement* expression? '}'
+
+statement ::= expression ';'
