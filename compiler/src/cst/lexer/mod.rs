@@ -13,6 +13,7 @@ use crate::cst::lexer::token::KeywordKind;
 /// The lexer will not return combined tokens. A combined token (e.g. '->') is built up of other
 /// tokens ('-' and '>'). The lexer is not aware whether a combined token is expected.
 pub struct Lexer<'text> {
+    text: &'text str,
     cursor: Cursor<'text>,
     queue: VecDeque<Token<'text>>,
 }
@@ -20,6 +21,7 @@ pub struct Lexer<'text> {
 impl<'text> Lexer<'text> {
     pub fn new(text: &'text str) -> Self {
         Self {
+            text,
             cursor: Cursor::new(text),
             queue: VecDeque::new(),
         }
@@ -44,24 +46,32 @@ impl<'text> Lexer<'text> {
         }
         Some(self.queue[offset])
     }
-    
+
     /// Check if upcoming tokens can be combined into a new token of the expected kind.
     /// If so, consumes upcoming tokens and returns a new token.
     pub fn next_kind(&mut self, kind: TokenKind) -> Option<Token<'text>> {
-        todo!()
+        let token = self.peek_kind(kind)?;
+        for _ in kind.decompose() {
+            self.next();
+        }
+        Some(token)
     }
-    
+
     /// Check if upcoming tokens can be combined into a new token of the expected kind.
     /// If so, returns a new token.
     pub fn peek_kind(&mut self, kind: TokenKind) -> Option<Token<'text>> {
         self.peek_kind_at_offset(kind, 0)
     }
-    
+
     /// Check if upcoming tokens starting at the given offset from the current position can
     /// be combined into a new token of the expected kind.
     /// If so, returns a new token.
     pub fn peek_kind_at_offset(&mut self, kind: TokenKind, offset: usize) -> Option<Token<'text>> {
-        todo!()
+        kind.decompose().into_iter()
+            .enumerate()
+            .map(|(i, _)| self.peek_at_offset(i + offset))
+            .collect::<Option<Vec<_>>>()
+            .and_then(|parts| kind.combine(self.text, &parts))
     }
 
     fn create(&mut self) -> Option<Token<'text>> {
@@ -82,11 +92,10 @@ impl<'text> Lexer<'text> {
             ')' => TokenKind::RightParentheses,
             _ => TokenKind::Unknown
         };
-        let Lexeme { start_offset, text, length } = self.cursor.close();
+        let Lexeme { start_offset, text } = self.cursor.close();
         Some(Token {
             kind,
             start_offset,
-            length,
             text,
         })
     }
@@ -143,29 +152,29 @@ mod tests {
     #[test]
     fn test_next() {
         let mut lexer = Lexer::new("foo 123");
-        assert_eq!(Some(Token { kind: TokenKind::Identifier, start_offset: 0, length: 3, text: "foo" }), lexer.next());
-        assert_eq!(Some(Token { kind: TokenKind::Whitespace, start_offset: 3, length: 1, text: " " }), lexer.next());
-        assert_eq!(Some(Token { kind: TokenKind::Integer, start_offset: 4, length: 3, text: "123" }), lexer.next());
+        assert_eq!(Some(Token { kind: TokenKind::Identifier, start_offset: 0, text: "foo" }), lexer.next());
+        assert_eq!(Some(Token { kind: TokenKind::Whitespace, start_offset: 3, text: " " }), lexer.next());
+        assert_eq!(Some(Token { kind: TokenKind::Integer, start_offset: 4, text: "123" }), lexer.next());
         assert_eq!(None, lexer.next());
     }
 
     #[test]
     fn test_peek() {
         let mut lexer = Lexer::new("foo bar");
-        assert_eq!(Some(Token { kind: TokenKind::Identifier, start_offset: 0, length: 3, text: "foo" }), lexer.peek());
-        assert_eq!(Some(Token { kind: TokenKind::Identifier, start_offset: 0, length: 3, text: "foo" }), lexer.peek());
-        assert_eq!(Some(Token { kind: TokenKind::Identifier, start_offset: 0, length: 3, text: "foo" }), lexer.next());
-        assert_eq!(Some(Token { kind: TokenKind::Whitespace, start_offset: 3, length: 1, text: " " }), lexer.peek());
+        assert_eq!(Some(Token { kind: TokenKind::Identifier, start_offset: 0, text: "foo" }), lexer.peek());
+        assert_eq!(Some(Token { kind: TokenKind::Identifier, start_offset: 0, text: "foo" }), lexer.peek());
+        assert_eq!(Some(Token { kind: TokenKind::Identifier, start_offset: 0, text: "foo" }), lexer.next());
+        assert_eq!(Some(Token { kind: TokenKind::Whitespace, start_offset: 3, text: " " }), lexer.peek());
     }
 
     #[test]
     fn test_peek_at_offset() {
         let mut lexer = Lexer::new("foo bar");
-        assert_eq!(Some(Token { kind: TokenKind::Identifier, start_offset: 0, length: 3, text: "foo" }), lexer.peek_at_offset(0));
-        assert_eq!(Some(Token { kind: TokenKind::Whitespace, start_offset: 3, length: 1, text: " " }), lexer.peek_at_offset(1));
-        assert_eq!(Some(Token { kind: TokenKind::Identifier, start_offset: 4, length: 3, text: "bar" }), lexer.peek_at_offset(2));
-        assert_eq!(Some(Token { kind: TokenKind::Identifier, start_offset: 0, length: 3, text: "foo" }), lexer.next());
-        assert_eq!(Some(Token { kind: TokenKind::Whitespace, start_offset: 3, length: 1, text: " " }), lexer.peek());
+        assert_eq!(Some(Token { kind: TokenKind::Identifier, start_offset: 0, text: "foo" }), lexer.peek_at_offset(0));
+        assert_eq!(Some(Token { kind: TokenKind::Whitespace, start_offset: 3, text: " " }), lexer.peek_at_offset(1));
+        assert_eq!(Some(Token { kind: TokenKind::Identifier, start_offset: 4, text: "bar" }), lexer.peek_at_offset(2));
+        assert_eq!(Some(Token { kind: TokenKind::Identifier, start_offset: 0, text: "foo" }), lexer.next());
+        assert_eq!(Some(Token { kind: TokenKind::Whitespace, start_offset: 3, text: " " }), lexer.peek());
     }
 
     #[test]
@@ -182,7 +191,7 @@ mod tests {
         let lexer = Lexer::new("§");
         assert_eq!(
             lexer.collect::<Vec<_>>(),
-            vec![Token { kind: TokenKind::Unknown, start_offset: 0, length: 1, text: "§" }]
+            vec![Token { kind: TokenKind::Unknown, start_offset: 0, text: "§" }]
         );
     }
 
@@ -190,19 +199,17 @@ mod tests {
     fn test_emoji() {
         let lexer = Lexer::new("👨‍👩‍👧‍👦");
         // We currently don't handle multiple characters joined together.
-        // As a result, we return all parts separately.
-        // We also test that we correctly handle multibyte characters.
-        // The start offset and length must be in characters and not in bytes.
+        // As a result, we return all characters separately.
         assert_eq!(
             lexer.collect::<Vec<_>>(),
             vec![
-                Token { kind: TokenKind::Unknown, start_offset: 0, length: 1, text: "👨" },
-                Token { kind: TokenKind::Unknown, start_offset: 1, length: 1, text: "‍" },
-                Token { kind: TokenKind::Unknown, start_offset: 2, length: 1, text: "👩" },
-                Token { kind: TokenKind::Unknown, start_offset: 3, length: 1, text: "‍" },
-                Token { kind: TokenKind::Unknown, start_offset: 4, length: 1, text: "👧" },
-                Token { kind: TokenKind::Unknown, start_offset: 5, length: 1, text: "‍" },
-                Token { kind: TokenKind::Unknown, start_offset: 6, length: 1, text: "👦" },
+                Token { kind: TokenKind::Unknown, start_offset: 0, text: "👨" },
+                Token { kind: TokenKind::Unknown, start_offset: 4, text: "‍" },
+                Token { kind: TokenKind::Unknown, start_offset: 7, text: "👩" },
+                Token { kind: TokenKind::Unknown, start_offset: 11, text: "‍" },
+                Token { kind: TokenKind::Unknown, start_offset: 14, text: "👧" },
+                Token { kind: TokenKind::Unknown, start_offset: 18, text: "‍" },
+                Token { kind: TokenKind::Unknown, start_offset: 21, text: "👦" },
             ]
         );
     }
@@ -212,7 +219,7 @@ mod tests {
         let lexer = Lexer::new("foo");
         assert_eq!(
             lexer.collect::<Vec<_>>(),
-            vec![Token { kind: TokenKind::Identifier, start_offset: 0, length: 3, text: "foo" }]
+            vec![Token { kind: TokenKind::Identifier, start_offset: 0, text: "foo" }]
         );
     }
 
@@ -221,7 +228,7 @@ mod tests {
         let lexer = Lexer::new("foo123");
         assert_eq!(
             lexer.collect::<Vec<_>>(),
-            vec![Token { kind: TokenKind::Identifier, start_offset: 0, length: 6, text: "foo123" }]
+            vec![Token { kind: TokenKind::Identifier, start_offset: 0, text: "foo123" }]
         );
     }
 
@@ -230,7 +237,7 @@ mod tests {
         let lexer = Lexer::new("foo_bar");
         assert_eq!(
             lexer.collect::<Vec<_>>(),
-            vec![Token { kind: TokenKind::Identifier, start_offset: 0, length: 7, text: "foo_bar" }]
+            vec![Token { kind: TokenKind::Identifier, start_offset: 0, text: "foo_bar" }]
         );
     }
 
@@ -239,7 +246,7 @@ mod tests {
         let lexer = Lexer::new("_foo");
         assert_eq!(
             lexer.collect::<Vec<_>>(),
-            vec![Token { kind: TokenKind::Identifier, start_offset: 0, length: 4, text: "_foo" }]
+            vec![Token { kind: TokenKind::Identifier, start_offset: 0, text: "_foo" }]
         );
     }
 
@@ -248,7 +255,7 @@ mod tests {
         let lexer = Lexer::new(" \n\n \t ");
         assert_eq!(
             lexer.collect::<Vec<_>>(),
-            vec![Token { kind: TokenKind::Whitespace, start_offset: 0, length: 6, text: " \n\n \t " }]
+            vec![Token { kind: TokenKind::Whitespace, start_offset: 0, text: " \n\n \t " }]
         );
     }
 
@@ -258,11 +265,11 @@ mod tests {
         assert_eq!(
             lexer.collect::<Vec<_>>(),
             vec![
-                Token { kind: TokenKind::Integer, start_offset: 0, length: 3, text: "123" },
-                Token { kind: TokenKind::Whitespace, start_offset: 3, length: 1, text: " " },
-                Token { kind: TokenKind::Integer, start_offset: 4, length: 3, text: "456" },
-                Token { kind: TokenKind::Whitespace, start_offset: 7, length: 1, text: " " },
-                Token { kind: TokenKind::Integer, start_offset: 8, length: 1, text: "0" },
+                Token { kind: TokenKind::Integer, start_offset: 0, text: "123" },
+                Token { kind: TokenKind::Whitespace, start_offset: 3, text: " " },
+                Token { kind: TokenKind::Integer, start_offset: 4, text: "456" },
+                Token { kind: TokenKind::Whitespace, start_offset: 7, text: " " },
+                Token { kind: TokenKind::Integer, start_offset: 8, text: "0" },
             ]
         );
     }
@@ -273,17 +280,17 @@ mod tests {
         assert_eq!(
             lexer.collect::<Vec<_>>(),
             vec![
-                Token { kind: TokenKind::Keyword(KeywordKind::Module), start_offset: 0, length: 6, text: "module" },
-                Token { kind: TokenKind::Whitespace, start_offset: 6, length: 1, text: " " },
-                Token { kind: TokenKind::Keyword(KeywordKind::Class), start_offset: 7, length: 5, text: "class" },
-                Token { kind: TokenKind::Whitespace, start_offset: 12, length: 1, text: " " },
-                Token { kind: TokenKind::Keyword(KeywordKind::Field), start_offset: 13, length: 3, text: "let" },
-                Token { kind: TokenKind::Whitespace, start_offset: 16, length: 1, text: " " },
-                Token { kind: TokenKind::Keyword(KeywordKind::Function), start_offset: 17, length: 8, text: "function" },
-                Token { kind: TokenKind::Whitespace, start_offset: 25, length: 1, text: " " },
-                Token { kind: TokenKind::Keyword(KeywordKind::Constant), start_offset: 26, length: 8, text: "constant" },
-                Token { kind: TokenKind::Whitespace, start_offset: 34, length: 1, text: " " },
-                Token { kind: TokenKind::Keyword(KeywordKind::Mutable), start_offset: 35, length: 7, text: "mutable" },
+                Token { kind: TokenKind::Keyword(KeywordKind::Module), start_offset: 0, text: "module" },
+                Token { kind: TokenKind::Whitespace, start_offset: 6, text: " " },
+                Token { kind: TokenKind::Keyword(KeywordKind::Class), start_offset: 7, text: "class" },
+                Token { kind: TokenKind::Whitespace, start_offset: 12, text: " " },
+                Token { kind: TokenKind::Keyword(KeywordKind::Field), start_offset: 13, text: "let" },
+                Token { kind: TokenKind::Whitespace, start_offset: 16, text: " " },
+                Token { kind: TokenKind::Keyword(KeywordKind::Function), start_offset: 17, text: "function" },
+                Token { kind: TokenKind::Whitespace, start_offset: 25, text: " " },
+                Token { kind: TokenKind::Keyword(KeywordKind::Constant), start_offset: 26, text: "constant" },
+                Token { kind: TokenKind::Whitespace, start_offset: 34, text: " " },
+                Token { kind: TokenKind::Keyword(KeywordKind::Mutable), start_offset: 35, text: "mutable" },
             ]
         );
     }
@@ -294,12 +301,12 @@ mod tests {
         assert_eq!(
             lexer.collect::<Vec<_>>(),
             vec![
-                Token { kind: TokenKind::Comma, start_offset: 0, length: 1, text: "," },
-                Token { kind: TokenKind::Colon, start_offset: 1, length: 1, text: ":" },
-                Token { kind: TokenKind::Semicolon, start_offset: 2, length: 1, text: ";" },
-                Token { kind: TokenKind::Equals, start_offset: 3, length: 1, text: "=" },
-                Token { kind: TokenKind::Minus, start_offset: 4, length: 1, text: "-" },
-                Token { kind: TokenKind::GreaterThan, start_offset: 5, length: 1, text: ">" },
+                Token { kind: TokenKind::Comma, start_offset: 0, text: "," },
+                Token { kind: TokenKind::Colon, start_offset: 1, text: ":" },
+                Token { kind: TokenKind::Semicolon, start_offset: 2, text: ";" },
+                Token { kind: TokenKind::Equals, start_offset: 3, text: "=" },
+                Token { kind: TokenKind::Minus, start_offset: 4, text: "-" },
+                Token { kind: TokenKind::GreaterThan, start_offset: 5, text: ">" },
             ]
         );
     }
@@ -310,10 +317,10 @@ mod tests {
         assert_eq!(
             lexer.collect::<Vec<_>>(),
             vec![
-                Token { kind: TokenKind::LeftBrace, start_offset: 0, length: 1, text: "{" },
-                Token { kind: TokenKind::RightBrace, start_offset: 1, length: 1, text: "}" },
-                Token { kind: TokenKind::LeftParentheses, start_offset: 2, length: 1, text: "(" },
-                Token { kind: TokenKind::RightParentheses, start_offset: 3, length: 1, text: ")" },
+                Token { kind: TokenKind::LeftBrace, start_offset: 0, text: "{" },
+                Token { kind: TokenKind::RightBrace, start_offset: 1, text: "}" },
+                Token { kind: TokenKind::LeftParentheses, start_offset: 2, text: "(" },
+                Token { kind: TokenKind::RightParentheses, start_offset: 3, text: ")" },
             ]
         );
     }
@@ -324,27 +331,103 @@ mod tests {
         assert_eq!(
             lexer.collect::<Vec<_>>(),
             vec![
-                Token { kind: TokenKind::Keyword(KeywordKind::Function), start_offset: 0, length: 8, text: "function" },
-                Token { kind: TokenKind::Whitespace, start_offset: 8, length: 1, text: " " },
-                Token { kind: TokenKind::Identifier, start_offset: 9, length: 3, text: "foo" },
-                Token { kind: TokenKind::LeftParentheses, start_offset: 12, length: 1, text: "(" },
-                Token { kind: TokenKind::Identifier, start_offset: 13, length: 1, text: "x" },
-                Token { kind: TokenKind::Colon, start_offset: 14, length: 1, text: ":" },
-                Token { kind: TokenKind::Whitespace, start_offset: 15, length: 1, text: " " },
-                Token { kind: TokenKind::Identifier, start_offset: 16, length: 7, text: "Integer" },
-                Token { kind: TokenKind::RightParentheses, start_offset: 23, length: 1, text: ")" },
-                Token { kind: TokenKind::Whitespace, start_offset: 24, length: 1, text: " " },
-                Token { kind: TokenKind::Minus, start_offset: 25, length: 1, text: "-" },
-                Token { kind: TokenKind::GreaterThan, start_offset: 26, length: 1, text: ">" },
-                Token { kind: TokenKind::Whitespace, start_offset: 27, length: 1, text: " " },
-                Token { kind: TokenKind::Identifier, start_offset: 28, length: 7, text: "Integer" },
-                Token { kind: TokenKind::Whitespace, start_offset: 35, length: 1, text: " " },
-                Token { kind: TokenKind::LeftBrace, start_offset: 36, length: 1, text: "{" },
-                Token { kind: TokenKind::Whitespace, start_offset: 37, length: 1, text: " " },
-                Token { kind: TokenKind::Identifier, start_offset: 38, length: 1, text: "x" },
-                Token { kind: TokenKind::Whitespace, start_offset: 39, length: 1, text: " " },
-                Token { kind: TokenKind::RightBrace, start_offset: 40, length: 1, text: "}" },
+                Token { kind: TokenKind::Keyword(KeywordKind::Function), start_offset: 0, text: "function" },
+                Token { kind: TokenKind::Whitespace, start_offset: 8, text: " " },
+                Token { kind: TokenKind::Identifier, start_offset: 9, text: "foo" },
+                Token { kind: TokenKind::LeftParentheses, start_offset: 12, text: "(" },
+                Token { kind: TokenKind::Identifier, start_offset: 13, text: "x" },
+                Token { kind: TokenKind::Colon, start_offset: 14, text: ":" },
+                Token { kind: TokenKind::Whitespace, start_offset: 15, text: " " },
+                Token { kind: TokenKind::Identifier, start_offset: 16, text: "Integer" },
+                Token { kind: TokenKind::RightParentheses, start_offset: 23, text: ")" },
+                Token { kind: TokenKind::Whitespace, start_offset: 24, text: " " },
+                Token { kind: TokenKind::Minus, start_offset: 25, text: "-" },
+                Token { kind: TokenKind::GreaterThan, start_offset: 26, text: ">" },
+                Token { kind: TokenKind::Whitespace, start_offset: 27, text: " " },
+                Token { kind: TokenKind::Identifier, start_offset: 28, text: "Integer" },
+                Token { kind: TokenKind::Whitespace, start_offset: 35, text: " " },
+                Token { kind: TokenKind::LeftBrace, start_offset: 36, text: "{" },
+                Token { kind: TokenKind::Whitespace, start_offset: 37, text: " " },
+                Token { kind: TokenKind::Identifier, start_offset: 38, text: "x" },
+                Token { kind: TokenKind::Whitespace, start_offset: 39, text: " " },
+                Token { kind: TokenKind::RightBrace, start_offset: 40, text: "}" },
             ]
         );
+    }
+
+    #[test]
+    fn test_next_kind_right_arrow() {
+        let mut lexer = Lexer::new("->");
+        let result = lexer.next_kind(TokenKind::RightArrow);
+        assert_eq!(result, Some(Token { kind: TokenKind::RightArrow, start_offset: 0, text: "->" }));
+        assert_eq!(lexer.next(), None);
+    }
+
+    #[test]
+    fn test_next_kind_path_separator() {
+        let mut lexer = Lexer::new("::");
+        let result = lexer.next_kind(TokenKind::PathSeparator);
+        assert_eq!(result, Some(Token { kind: TokenKind::PathSeparator, start_offset: 0, text: "::" }));
+        assert_eq!(lexer.next(), None);
+    }
+
+    #[test]
+    fn test_next_kind_fails_when_not_matching() {
+        let mut lexer = Lexer::new("-;");
+        let result = lexer.next_kind(TokenKind::RightArrow);
+        assert_eq!(result, None);
+        assert_eq!(lexer.next(), Some(Token { kind: TokenKind::Minus, start_offset: 0, text: "-" }));
+    }
+
+    #[test]
+    fn test_peek_kind_right_arrow() {
+        let mut lexer = Lexer::new("->");
+        let result = lexer.peek_kind(TokenKind::RightArrow);
+        assert_eq!(result, Some(Token { kind: TokenKind::RightArrow, start_offset: 0, text: "->" }));
+        assert_eq!(lexer.peek(), Some(Token { kind: TokenKind::Minus, start_offset: 0, text: "-" }));
+    }
+
+    #[test]
+    fn test_peek_kind_path_separator() {
+        let mut lexer = Lexer::new("::");
+        let result = lexer.peek_kind(TokenKind::PathSeparator);
+        assert_eq!(result, Some(Token { kind: TokenKind::PathSeparator, start_offset: 0, text: "::" }));
+        assert_eq!(lexer.peek(), Some(Token { kind: TokenKind::Colon, start_offset: 0, text: ":" }));
+    }
+
+    #[test]
+    fn test_peek_kind_fails_when_not_matching() {
+        let mut lexer = Lexer::new("-;");
+        let result = lexer.peek_kind(TokenKind::RightArrow);
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn test_peek_kind_at_offset_right_arrow() {
+        let mut lexer = Lexer::new("foo ->");
+        let result = lexer.peek_kind_at_offset(TokenKind::RightArrow, 2);
+        assert_eq!(result, Some(Token { kind: TokenKind::RightArrow, start_offset: 4, text: "->" }));
+        assert_eq!(lexer.peek(), Some(Token { kind: TokenKind::Identifier, start_offset: 0, text: "foo" }));
+    }
+
+    #[test]
+    fn test_peek_kind_at_offset_path_separator() {
+        let mut lexer = Lexer::new("foo ::");
+        let result = lexer.peek_kind_at_offset(TokenKind::PathSeparator, 2);
+        assert_eq!(result, Some(Token { kind: TokenKind::PathSeparator, start_offset: 4, text: "::" }));
+    }
+
+    #[test]
+    fn test_peek_kind_at_offset_zero() {
+        let mut lexer = Lexer::new("->");
+        let result = lexer.peek_kind_at_offset(TokenKind::RightArrow, 0);
+        assert_eq!(result, Some(Token { kind: TokenKind::RightArrow, start_offset: 0, text: "->" }));
+    }
+
+    #[test]
+    fn test_peek_kind_at_offset_fails_when_not_matching() {
+        let mut lexer = Lexer::new("foo -;");
+        let result = lexer.peek_kind_at_offset(TokenKind::RightArrow, 2);
+        assert_eq!(result, None);
     }
 }
