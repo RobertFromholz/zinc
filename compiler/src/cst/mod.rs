@@ -3,3 +3,6 @@
 //! The parser registers symbols in the source code to a symbol table.
 
 mod lexer;
+mod token;
+
+use token::{Token, TokenKind, KeywordKind};
