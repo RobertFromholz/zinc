@@ -4,5 +4,7 @@
 
 mod lexer;
 mod token;
+mod tree;
 
 use token::{Token, TokenKind, KeywordKind};
+use tree::{Tree, Node, TreeKind};
