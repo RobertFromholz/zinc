@@ -30,7 +30,7 @@ parameter ::= 'constant'? 'mutable'? identifier ':' type
 
 /// A constant field cannot be mutable.
 /// A constant field must be initialized by a constant expression.
-field ::= 'constant'? 'mutable'? 'let' identifier ':' type '=' expression;
+field ::= 'let' 'constant'? 'mutable'? identifier ':' type '=' expression;
 
 /// A type is a constant expression that evaluates to a type.
 /// A class without parameters can be used as a type.

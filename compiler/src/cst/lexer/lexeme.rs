@@ -3,13 +3,7 @@
 //! A cursor is used to iterate over some source code and generate a stream of lexemes.
 
 use std::str::Chars;
-
-/// A lexeme stores the position of a token.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct Lexeme<'text> {
-    pub(super) start_offset: usize,
-    pub(super) text: &'text str,
-}
+use crate::cst::Span;
 
 /// An iterator to convert source code into a stream of lexemes.
 ///
@@ -33,15 +27,16 @@ impl<'text> Cursor<'text> {
     }
 
     /// Returns the current lexeme.
-    pub fn current(&self) -> Lexeme<'text> {
-        Lexeme {
+    pub fn current(&self) -> Span<'text> {
+        Span {
+            text: self.text,
             start_offset: self.start_offset,
-            text: &self.text[self.start_offset..self.start_offset + self.length],
+            length: self.length,
         }
     }
 
     /// Close the current lexeme.
-    pub fn close(&mut self) -> Lexeme<'text> {
+    pub fn close(&mut self) -> Span<'text> {
         let current = self.current();
         self.start_offset += self.length;
         self.length = 0;
@@ -87,56 +82,65 @@ mod tests {
 
     #[test]
     fn test_close_lexeme_without_consuming() {
-        let mut cursor = Cursor::new("");
-        assert_eq!(cursor.close(), Lexeme { start_offset: 0, text: "" });
+        let text = "";
+        let mut cursor = Cursor::new(text);
+        assert_eq!(cursor.close(), Span { text, start_offset: 0, length: 0 });
     }
 
     #[test]
     fn test_close_lexeme_after_consuming_empty_text() {
-        let mut cursor = Cursor::new("");
+        let text = "";
+        let mut cursor = Cursor::new(text);
         assert_eq!(cursor.consume(), None);
-        assert_eq!(cursor.close(), Lexeme { start_offset: 0, text: "" });
+        assert_eq!(cursor.close(), Span { text, start_offset: 0, length: 0 });
     }
 
     #[test]
     fn test_close_lexeme() {
-        let mut cursor = Cursor::new("abc");
+        let text = "abc";
+        let mut cursor = Cursor::new(text);
         assert_eq!(cursor.consume(), Some('a'));
-        assert_eq!(cursor.close(), Lexeme { start_offset: 0, text: "a" });
+        assert_eq!(cursor.close(), Span { text, start_offset: 0, length: 1 });
     }
 
     #[test]
     fn test_consume_while() {
-        let mut cursor = Cursor::new("aaabc");
+        let text = "aaabc";
+        let mut cursor = Cursor::new(text);
         assert_eq!(cursor.consume_while(|next| next == 'a'), 3);
-        assert_eq!(cursor.close(), Lexeme { start_offset: 0, text: "aaa" });
+        assert_eq!(cursor.close(), Span { text, start_offset: 0, length: 3 });
     }
 
     #[test]
     fn test_peek() {
-        let mut cursor = Cursor::new("abc");
+        let text = "abc";
+        let mut cursor = Cursor::new(text);
         assert_eq!(cursor.peek(), Some('a'));
         assert_eq!(cursor.peek(), Some('a'));
         assert_eq!(cursor.consume(), Some('a'));
         assert_eq!(cursor.peek(), Some('b'));
+        assert_eq!(cursor.close(), Span { text, start_offset: 0, length: 1 })
     }
 
     #[test]
     fn test_peek_at_offset() {
-        let mut cursor = Cursor::new("abc");
+        let text = "abc";
+        let mut cursor = Cursor::new(text);
         assert_eq!(cursor.peek_at_offset(0), Some('a'));
         assert_eq!(cursor.peek_at_offset(1), Some('b'));
         assert_eq!(cursor.consume(), Some('a'));
         assert_eq!(cursor.peek_at_offset(0), Some('b'));
         assert_eq!(cursor.peek_at_offset(1), Some('c'));
+        assert_eq!(cursor.close(), Span { text, start_offset: 0, length: 1 })
     }
 
     #[test]
     fn test_emoji() {
-        let mut cursor = Cursor::new("👨‍👩‍👧‍👦");
+        let text = "👨‍👩‍👧‍👦";
+        let mut cursor = Cursor::new(text);
         cursor.consume_while(|_| true);
         // We currently don't handle multiple characters joined together.
         // This might change in the future.
-        assert_eq!(cursor.close(), Lexeme { start_offset: 0, text: "👨‍👩‍👧‍👦" });
+        assert_eq!(cursor.close(), Span { text, start_offset: 0, length: text.len() });
     }
 }
