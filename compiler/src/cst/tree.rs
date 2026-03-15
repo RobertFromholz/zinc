@@ -36,5 +36,6 @@ pub enum TreeKind {
     Arguments,
     ParenthesizedExpression,
     BlockExpression,
-    Statement
+    Statement,
+    Unknown
 }
