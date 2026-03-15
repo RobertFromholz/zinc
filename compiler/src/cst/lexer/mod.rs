@@ -1,10 +1,10 @@
 //! Lexer responsible for converting source code into a stream of tokens.
 
-mod lexeme;
+mod cursor;
 
 use std::collections::VecDeque;
 use super::{Token, TokenKind, KeywordKind};
-use lexeme::Cursor;
+use cursor::Cursor;
 
 /// A lexer to convert source code into a stream of tokens.
 ///

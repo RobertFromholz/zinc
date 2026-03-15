@@ -6,8 +6,8 @@ mod lexer;
 mod token;
 mod tree;
 
-use token::{Token, TokenKind, KeywordKind};
-use tree::{Tree, Node, TreeKind};
+use token::{KeywordKind, Token, TokenKind};
+use tree::{Node, Tree, TreeKind};
 
 /// A substring in the source code.
 ///
@@ -23,7 +23,7 @@ impl<'text> Span<'text> {
     /// Combine a list of consecutive spans into a new span.
     ///
     /// Returns `None` if the iterator is empty or if the iterator is non-consecutive.
-    pub fn combine(mut spans: impl Iterator<Item=Span<'text>>) -> Option<Span<'text>> {
+    pub fn combine(mut spans: impl Iterator<Item = Span<'text>>) -> Option<Span<'text>> {
         let first = spans.next()?;
         spans.try_fold(first, |previous, next| {
             if previous.end_offset() == next.start_offset() {
@@ -54,4 +54,3 @@ impl<'text> Span<'text> {
         self.length
     }
 }
-
