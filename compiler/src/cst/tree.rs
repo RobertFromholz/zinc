@@ -9,12 +9,14 @@ pub struct Tree<'text> {
     pub(super) children: Vec<Node<'text>>,
 }
 
-/// A node in a tree.
+/// A node in the CST.
+///
 /// A node is either a leaf node (a token) or a composite node (a tree).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Node<'text> {
     Tree(Tree<'text>),
     Token(Token<'text>),
+    Error(String),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -37,5 +39,5 @@ pub enum TreeKind {
     ParenthesizedExpression,
     BlockExpression,
     Statement,
-    Unknown
+    Unknown,
 }
