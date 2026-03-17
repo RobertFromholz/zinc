@@ -1,4 +1,8 @@
 mod event;
+mod grammar;
+
+#[cfg(test)]
+mod tests;
 
 use crate::cst::lexer::Lexer;
 use crate::cst::parser::event::{CloseMarker, EventStream, OpenMarker};
@@ -48,15 +52,46 @@ impl<'text> Parser<'text> {
     /// Consumes the next node if it is of the provided type.
     ///
     /// Automatically skips any whitespace tokens.
-    fn consume(&mut self, kind: TokenKind) {
+    fn consume(&mut self, kind: TokenKind) -> bool {
         self.consume_whitespace();
         match self.lexer.next_kind(kind) {
-            Some(token) => self.events.consume(token),
-            None => {
-                let actual = self.lexer.peek();
-                panic!("expected {}, got {:?}", kind, actual);
+            Some(token) => {
+                self.events.consume(token);
+                true
             }
+            None => false,
         }
+    }
+
+    fn expect(&mut self, kind: TokenKind) -> bool {
+        if self.consume(kind) {
+            true
+        } else {
+            self.error(format!("expected '{}'", kind));
+            false
+        }
+    }
+
+    /// Consumes the next non-whitespace node with an associated error.
+    fn consume_with_error(&mut self, error: impl Into<String>) {
+        let marker = self.open();
+        self.consume_any();
+        self.events.error(error.into());
+        self.close(marker, TreeKind::Unknown);
+    }
+
+    fn error(&mut self, error: impl Into<String>) {
+        let marker = self.open();
+        self.events.error(error.into());
+        self.close(marker, TreeKind::Unknown);
+    }
+
+    /// Consumes the next non-whitespace node.
+    fn consume_any(&mut self) -> Option<TokenKind> {
+        self.consume_whitespace();
+        let next = self.lexer.next()?;
+        self.events.consume(next);
+        Some(next.kind)
     }
 
     /// Consume all whitespace tokens.
@@ -85,5 +120,20 @@ impl<'text> Parser<'text> {
     /// Returns whether the next token is of a specific type.
     fn at(&mut self, kind: TokenKind) -> bool {
         self.lexer.peek_kind(kind).is_some()
+    }
+
+    /// Returns whether the next token is of the provided types.
+    fn at_any(&mut self, kinds: &[TokenKind]) -> Option<TokenKind> {
+        for kind in kinds {
+            if self.at(*kind) {
+                return Some(*kind);
+            }
+        }
+        None
+    }
+
+    /// Returns whether the end of the file has been reached.
+    fn end_of_file(&mut self) -> bool {
+        self.lexer.peek().is_none()
     }
 }

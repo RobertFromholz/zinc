@@ -23,9 +23,11 @@ pub enum Node<'text> {
 pub enum TreeKind {
     File,
     Module,
+    Items,
     Class,
     Function,
     Field,
+    Initializer,
     Inherits,
     Parameters,
     Parameter,

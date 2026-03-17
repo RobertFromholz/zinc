@@ -8,7 +8,7 @@ mod parser;
 mod token;
 mod tree;
 
-use token::{KeywordKind, Token, TokenKind};
+use token::{Token, TokenKind};
 use tree::{Node, Tree, TreeKind};
 
 /// A substring in the source code.

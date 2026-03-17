@@ -3,7 +3,7 @@ file ::= module elements;
 
 /// Any parameter declared in a module is constant.
 /// The name of the module must match the file name.
-module ::= 'module' parameters identifier ';'
+module ::= 'module' identifier parameters? ';'
 
 elements ::= element*
 
@@ -14,7 +14,8 @@ class ::= 'class' identifier parameters? inherits? '{' elements '}';
 
 inherits ::= ':' type (',' type)*
 
-function ::= 'constant'? 'function' identifier parameters '->' type block_expression
+/// A function is abstract if it doesn't declare a body.
+function ::= 'constant'? 'function' identifier parameters '->' type (block_expression | ';')
 
 /// A parameter list can be empty.
 /// The first argument can be a self_parameter *if* this a function declared inside a class.
@@ -30,7 +31,9 @@ parameter ::= 'constant'? 'mutable'? identifier ':' type
 
 /// A constant field cannot be mutable.
 /// A constant field must be initialized by a constant expression.
-field ::= 'let' 'constant'? 'mutable'? identifier ':' type '=' expression;
+field ::= ( 'let' | 'constant' ) 'mutable'? identifier ':' type initializer?;
+
+initializer ::= '=' expression
 
 /// A type is a constant expression that evaluates to a type.
 /// A class without parameters can be used as a type.

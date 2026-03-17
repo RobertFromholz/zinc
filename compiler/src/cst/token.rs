@@ -19,8 +19,18 @@ pub enum TokenKind {
     /// An integer literal.
     Integer,
 
-    /// Any keyword.
-    Keyword(KeywordKind),
+    /// `module`
+    Module,
+    /// `class`
+    Class,
+    /// `let`
+    Field,
+    /// `function`
+    Function,
+    /// `constant`
+    Constant,
+    /// `mutable`
+    Mutable,
 
     /// `,`
     Comma,
@@ -94,9 +104,12 @@ impl fmt::Display for TokenKind {
             TokenKind::Whitespace => "whitespace",
             TokenKind::Identifier => "identifier",
             TokenKind::Integer => "integer",
-            TokenKind::Keyword(keyword) => {
-                return write!(f, "{}", keyword)
-            },
+            TokenKind::Module => "module",
+            TokenKind::Class => "class",
+            TokenKind::Field => "let",
+            TokenKind::Function => "function",
+            TokenKind::Constant => "constant",
+            TokenKind::Mutable => "mutable",
             TokenKind::Comma => ",",
             TokenKind::Semicolon => ";",
             TokenKind::Colon => ":",
@@ -114,48 +127,19 @@ impl fmt::Display for TokenKind {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum KeywordKind {
-    /// `module`
-    Module,
-    /// `class`
-    Class,
-    /// `let`
-    Field,
-    /// `function`
-    Function,
-    /// `constant`
-    Constant,
-    /// `mutable`
-    Mutable,
-}
-
-impl TryFrom<&str> for KeywordKind {
+impl TryFrom<&str> for TokenKind {
     type Error = ();
 
     fn try_from(value: &str) -> Result<Self, Self::Error> {
         match value {
-            "module" => Ok(KeywordKind::Module),
-            "class" => Ok(KeywordKind::Class),
-            "let" => Ok(KeywordKind::Field),
-            "function" => Ok(KeywordKind::Function),
-            "constant" => Ok(KeywordKind::Constant),
-            "mutable" => Ok(KeywordKind::Mutable),
+            "module" => Ok(TokenKind::Module),
+            "class" => Ok(TokenKind::Class),
+            "let" => Ok(TokenKind::Field),
+            "function" => Ok(TokenKind::Function),
+            "constant" => Ok(TokenKind::Constant),
+            "mutable" => Ok(TokenKind::Mutable),
             _ => Err(())
         }
-    }
-}
-
-impl fmt::Display for KeywordKind {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", match self {
-            KeywordKind::Module => "module",
-            KeywordKind::Class => "class",
-            KeywordKind::Field => "let",
-            KeywordKind::Function => "function",
-            KeywordKind::Constant => "constant",
-            KeywordKind::Mutable => "mutable"
-        })
     }
 }
 

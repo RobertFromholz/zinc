@@ -3,7 +3,7 @@
 mod cursor;
 
 use std::collections::VecDeque;
-use super::{Token, TokenKind, KeywordKind};
+use super::{Token, TokenKind};
 use cursor::Cursor;
 
 /// A lexer to convert source code into a stream of tokens.
@@ -103,11 +103,8 @@ impl<'text> Lexer<'text> {
     fn identifier(&mut self) -> TokenKind {
         self.cursor.consume_while(is_identifier_continue);
         let span = self.cursor.current();
-        if let Ok(keyword) = KeywordKind::try_from(span.text()) {
-            TokenKind::Keyword(keyword)
-        } else {
-            TokenKind::Identifier
-        }
+        TokenKind::try_from(span.text())
+            .unwrap_or(TokenKind::Identifier)
     }
 
     fn integer(&mut self) -> TokenKind {
@@ -289,17 +286,17 @@ mod tests {
         assert_eq!(
             lexer.collect::<Vec<_>>(),
             vec![
-                Token { kind: TokenKind::Keyword(KeywordKind::Module), span: Span { text, start_offset: 0, length: "module".len() } },
+                Token { kind: TokenKind::Module, span: Span { text, start_offset: 0, length: "module".len() } },
                 Token { kind: TokenKind::Whitespace, span: Span { text, start_offset: 6, length: " ".len() } },
-                Token { kind: TokenKind::Keyword(KeywordKind::Class), span: Span { text, start_offset: 7, length: "class".len() } },
+                Token { kind: TokenKind::Class, span: Span { text, start_offset: 7, length: "class".len() } },
                 Token { kind: TokenKind::Whitespace, span: Span { text, start_offset: 12, length: " ".len() } },
-                Token { kind: TokenKind::Keyword(KeywordKind::Field), span: Span { text, start_offset: 13, length: "let".len() } },
+                Token { kind: TokenKind::Field, span: Span { text, start_offset: 13, length: "let".len() } },
                 Token { kind: TokenKind::Whitespace, span: Span { text, start_offset: 16, length: " ".len() } },
-                Token { kind: TokenKind::Keyword(KeywordKind::Function), span: Span { text, start_offset: 17, length: "function".len() } },
+                Token { kind: TokenKind::Function, span: Span { text, start_offset: 17, length: "function".len() } },
                 Token { kind: TokenKind::Whitespace, span: Span { text, start_offset: 25, length: " ".len() } },
-                Token { kind: TokenKind::Keyword(KeywordKind::Constant), span: Span { text, start_offset: 26, length: "constant".len() } },
+                Token { kind: TokenKind::Constant, span: Span { text, start_offset: 26, length: "constant".len() } },
                 Token { kind: TokenKind::Whitespace, span: Span { text, start_offset: 34, length: " ".len() } },
-                Token { kind: TokenKind::Keyword(KeywordKind::Mutable), span: Span { text, start_offset: 35, length: "mutable".len() } },
+                Token { kind: TokenKind::Mutable, span: Span { text, start_offset: 35, length: "mutable".len() } },
             ]
         );
     }
@@ -343,7 +340,7 @@ mod tests {
         assert_eq!(
             lexer.collect::<Vec<_>>(),
             vec![
-                Token { kind: TokenKind::Keyword(KeywordKind::Function), span: Span { text, start_offset: 0, length: "function".len() } },
+                Token { kind: TokenKind::Function, span: Span { text, start_offset: 0, length: "function".len() } },
                 Token { kind: TokenKind::Whitespace, span: Span { text, start_offset: 8, length: " ".len() } },
                 Token { kind: TokenKind::Identifier, span: Span { text, start_offset: 9, length: "foo".len() } },
                 Token { kind: TokenKind::LeftParentheses, span: Span { text, start_offset: 12, length: "(".len() } },
