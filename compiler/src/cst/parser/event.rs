@@ -65,9 +65,9 @@ impl<'text> EventStream<'text> {
                     let node = stack.pop()
                         .expect("unexpected 'Event::Finish' without corresponding 'Event::Start' event");
                     match stack.last_mut() {
-                        Some(parent) =>  {
+                        Some(parent) => {
                             parent.children.push(Node::Tree(node))
-                        },
+                        }
                         None => {
                             if let Some(event) = iter.next() {
                                 // We are trying to parse an event, but we have already closed
@@ -96,6 +96,11 @@ impl<'text> EventStream<'text> {
             }
         }
         panic!("expected 'Event::Finish'")
+    }
+
+    /// Returns whether this event stream is empty.
+    pub fn is_empty(&self) -> bool {
+        self.events.is_empty()
     }
 
     /// Open a new node. The node's type is determined when it is closed.
