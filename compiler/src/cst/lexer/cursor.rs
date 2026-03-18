@@ -84,7 +84,7 @@ mod tests {
     fn test_close_lexeme_without_consuming() {
         let text = "";
         let mut cursor = Cursor::new(text);
-        assert_eq!(cursor.close(), Span { text, start_offset: 0, length: 0 });
+        assert_eq!(cursor.close(), Span::new(text, 0..0));
     }
 
     #[test]
@@ -92,7 +92,7 @@ mod tests {
         let text = "";
         let mut cursor = Cursor::new(text);
         assert_eq!(cursor.consume(), None);
-        assert_eq!(cursor.close(), Span { text, start_offset: 0, length: 0 });
+        assert_eq!(cursor.close(), Span::new(text, 0..0));
     }
 
     #[test]
@@ -100,7 +100,7 @@ mod tests {
         let text = "abc";
         let mut cursor = Cursor::new(text);
         assert_eq!(cursor.consume(), Some('a'));
-        assert_eq!(cursor.close(), Span { text, start_offset: 0, length: 1 });
+        assert_eq!(cursor.close(), Span::new(text, 0..1));
     }
 
     #[test]
@@ -108,7 +108,7 @@ mod tests {
         let text = "aaabc";
         let mut cursor = Cursor::new(text);
         assert_eq!(cursor.consume_while(|next| next == 'a'), 3);
-        assert_eq!(cursor.close(), Span { text, start_offset: 0, length: 3 });
+        assert_eq!(cursor.close(), Span::new(text, 0..3));
     }
 
     #[test]
@@ -119,7 +119,7 @@ mod tests {
         assert_eq!(cursor.peek(), Some('a'));
         assert_eq!(cursor.consume(), Some('a'));
         assert_eq!(cursor.peek(), Some('b'));
-        assert_eq!(cursor.close(), Span { text, start_offset: 0, length: 1 })
+        assert_eq!(cursor.close(), Span::new(text, 0..1))
     }
 
     #[test]
@@ -131,7 +131,7 @@ mod tests {
         assert_eq!(cursor.consume(), Some('a'));
         assert_eq!(cursor.peek_at_offset(0), Some('b'));
         assert_eq!(cursor.peek_at_offset(1), Some('c'));
-        assert_eq!(cursor.close(), Span { text, start_offset: 0, length: 1 })
+        assert_eq!(cursor.close(), Span::new(text, 0..1))
     }
 
     #[test]
@@ -141,6 +141,6 @@ mod tests {
         cursor.consume_while(|_| true);
         // We currently don't handle multiple characters joined together.
         // This might change in the future.
-        assert_eq!(cursor.close(), Span { text, start_offset: 0, length: text.len() });
+        assert_eq!(cursor.close(), Span::new(text, 0..));
     }
 }

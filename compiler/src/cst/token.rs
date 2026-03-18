@@ -1,4 +1,5 @@
 use std::fmt;
+use std::ops::RangeBounds;
 use crate::cst::Span;
 
 /// A token is a character or sequence in the source code of some associated type.
@@ -6,6 +7,15 @@ use crate::cst::Span;
 pub struct Token<'text> {
     pub(super) kind: TokenKind,
     pub(super) span: Span<'text>,
+}
+
+impl<'text> Token<'text> {
+    pub fn new(text: &'text str, range: impl RangeBounds<usize>, kind: TokenKind) -> Self {
+        Self {
+            kind,
+            span: Span::new(text, range),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -151,30 +161,30 @@ mod tests {
     fn test_combine_right_arrow() {
         let text = "->";
         let parts = vec![
-            Token { kind: TokenKind::Minus, span: Span { text, start_offset: 0, length: 1 } },
-            Token { kind: TokenKind::GreaterThan, span: Span { text, start_offset: 1, length: 1 } },
+            Token::new(text, 0..1, TokenKind::Minus),
+            Token::new(text, 1..2, TokenKind::GreaterThan),
         ];
         let result = TokenKind::RightArrow.combine(&parts);
-        assert_eq!(result, Some(Token { kind: TokenKind::RightArrow, span: Span { text, start_offset: 0, length: 2 } }));
+        assert_eq!(result, Some(Token::new(text, 0..2, TokenKind::RightArrow)));
     }
 
     #[test]
     fn test_combine_path_separator() {
         let text = "::";
         let parts = vec![
-            Token { kind: TokenKind::Colon, span: Span { text, start_offset: 0, length: 1 } },
-            Token { kind: TokenKind::Colon, span: Span { text, start_offset: 1, length: 1 } },
+            Token::new(text, 0..1, TokenKind::Colon),
+            Token::new(text, 1..2, TokenKind::Colon),
         ];
         let result = TokenKind::PathSeparator.combine(&parts);
-        assert_eq!(result, Some(Token { kind: TokenKind::PathSeparator, span: Span { text, start_offset: 0, length: 2 } }));
+        assert_eq!(result, Some(Token::new(text, 0..2, TokenKind::PathSeparator)));
     }
 
     #[test]
     fn test_combine_wrong_parts() {
         let text = "-;";
         let parts = vec![
-            Token { kind: TokenKind::Minus, span: Span { text, start_offset: 0, length: 1 } },
-            Token { kind: TokenKind::Semicolon, span: Span { text, start_offset: 1, length: 1 } },
+            Token::new(text, 0..1, TokenKind::Minus),
+            Token::new(text, 1..2, TokenKind::Semicolon),
         ];
         let result = TokenKind::RightArrow.combine(&parts);
         assert_eq!(result, None);
@@ -184,8 +194,8 @@ mod tests {
     fn test_combine_non_consecutive() {
         let text = "- >";
         let parts = vec![
-            Token { kind: TokenKind::Minus, span: Span { text, start_offset: 0, length: 1 } },
-            Token { kind: TokenKind::GreaterThan, span: Span { text, start_offset: 2, length: 1 } },
+            Token::new(text, 0..1, TokenKind::Minus),
+            Token::new(text, 2..3, TokenKind::GreaterThan),
         ];
         let result = TokenKind::RightArrow.combine(&parts);
         assert_eq!(result, None);
@@ -195,17 +205,17 @@ mod tests {
     fn test_combine_single_token() {
         let text = ",";
         let parts = vec![
-            Token { kind: TokenKind::Comma, span: Span { text, start_offset: 0, length: 1 } },
+            Token::new(text, 0..1, TokenKind::Comma),
         ];
         let result = TokenKind::Comma.combine(&parts);
-        assert_eq!(result, Some(Token { kind: TokenKind::Comma, span: Span { text, start_offset: 0, length: 1 } }));
+        assert_eq!(result, Some(Token::new(text, 0..1, TokenKind::Comma)));
     }
 
     #[test]
     fn test_combine_insufficient_parts() {
         let text = "-";
         let parts = vec![
-            Token { kind: TokenKind::Minus, span: Span { text, start_offset: 0, length: 1 } },
+            Token::new(text, 0..1, TokenKind::Minus),
         ];
         let result = TokenKind::RightArrow.combine(&parts);
         assert_eq!(result, None);

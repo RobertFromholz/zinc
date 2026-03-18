@@ -229,7 +229,6 @@ impl<'text> Iterator for IntoIter<'text> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::cst::Span;
     use crate::cst::token::TokenKind;
 
     fn compare_event_stream(build: impl FnOnce(&mut EventStream), events: Vec<Event>) {
@@ -242,11 +241,11 @@ mod tests {
     fn test_iterate_events() {
         compare_event_stream(|stream| {
             let marker = stream.open();
-            stream.consume(Token { kind: TokenKind::Identifier, span: Span { text: "abc", start_offset: 0, length: 0 } });
+            stream.consume(Token::new("abc", 0..3, TokenKind::Identifier));
             stream.close(marker, TreeKind::File);
         }, vec![
             Event::Start { kind: TreeKind::File, previous: None },
-            Event::Token { token: Token { kind: TokenKind::Identifier, span: Span { text: "abc", start_offset: 0, length: 0 } } },
+            Event::Token { token: Token::new("abc", 0..3, TokenKind::Identifier) },
             Event::Finish
         ]);
     }
@@ -255,17 +254,17 @@ mod tests {
     fn test_iterate_non_linear_event() {
         compare_event_stream(|stream| {
             let marker = stream.open();
-            stream.consume(Token { kind: TokenKind::Identifier, span: Span { text: "abcdef", start_offset: 0, length: 3 } });
+            stream.consume(Token::new("abcdef", 0..3, TokenKind::Identifier));
             let marker = stream.close(marker, TreeKind::Module);
             let marker = stream.open_before(marker);
-            stream.consume(Token { kind: TokenKind::Identifier, span: Span { text: "abcdef", start_offset: 3, length: 6 } });
+            stream.consume(Token::new("abcdef", 3..6, TokenKind::Identifier));
             stream.close(marker, TreeKind::File);
         }, vec![
             Event::Start { kind: TreeKind::File, previous: None },
             Event::Start { kind: TreeKind::Module, previous: Some(3) },
-            Event::Token { token: Token { kind: TokenKind::Identifier, span: Span { text: "abcdef", start_offset: 0, length: 3 } } },
+            Event::Token { token: Token::new("abcdef", 0..3, TokenKind::Identifier) },
             Event::Finish,
-            Event::Token { token: Token { kind: TokenKind::Identifier, span: Span { text: "abcdef", start_offset: 3, length: 6 } } },
+            Event::Token { token: Token::new("abcdef", 3..6, TokenKind::Identifier) },
             Event::Finish,
         ])
     }
@@ -297,14 +296,14 @@ mod tests {
     fn build_event_stream() {
         let mut stream = EventStream::new();
         let marker = stream.open();
-        stream.consume(Token { kind: TokenKind::Identifier, span: Span { text: "abc", start_offset: 0, length: 0 } });
+        stream.consume(Token::new("abc", 0..3, TokenKind::Identifier));
         stream.close(marker, TreeKind::File);
         let tree = stream.build();
         assert_eq!(
             Tree {
                 kind: TreeKind::File,
                 children: vec![
-                    Node::Token(Token { kind: TokenKind::Identifier, span: Span { text: "abc", start_offset: 0, length: 0 } })
+                    Node::Token(Token::new("abc", 0..3, TokenKind::Identifier))
                 ]
             },
             tree

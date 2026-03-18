@@ -140,15 +140,14 @@ fn is_integer(next: char) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::cst::Span;
 
     #[test]
     fn test_next() {
         let text = "foo 123";
         let mut lexer = Lexer::new(text);
-        assert_eq!(Some(Token { kind: TokenKind::Identifier, span: Span { text, start_offset: 0, length: "foo".len() } }), lexer.next());
-        assert_eq!(Some(Token { kind: TokenKind::Whitespace, span: Span { text, start_offset: 3, length: " ".len() } }), lexer.next());
-        assert_eq!(Some(Token { kind: TokenKind::Integer, span: Span { text, start_offset: 4, length: "123".len() } }), lexer.next());
+        assert_eq!(Some(Token::new(text, 0..3, TokenKind::Identifier)), lexer.next());
+        assert_eq!(Some(Token::new(text, 3..4, TokenKind::Whitespace)), lexer.next());
+        assert_eq!(Some(Token::new(text, 4..7, TokenKind::Integer)), lexer.next());
         assert_eq!(None, lexer.next());
     }
 
@@ -156,21 +155,21 @@ mod tests {
     fn test_peek() {
         let text = "foo bar";
         let mut lexer = Lexer::new(text);
-        assert_eq!(Some(Token { kind: TokenKind::Identifier, span: Span { text, start_offset: 0, length: "foo".len() } }), lexer.peek());
-        assert_eq!(Some(Token { kind: TokenKind::Identifier, span: Span { text, start_offset: 0, length: "foo".len() } }), lexer.peek());
-        assert_eq!(Some(Token { kind: TokenKind::Identifier, span: Span { text, start_offset: 0, length: "foo".len() } }), lexer.next());
-        assert_eq!(Some(Token { kind: TokenKind::Whitespace, span: Span { text, start_offset: 3, length: " ".len() } }), lexer.peek());
+        assert_eq!(Some(Token::new(text, 0..3, TokenKind::Identifier)), lexer.peek());
+        assert_eq!(Some(Token::new(text, 0..3, TokenKind::Identifier)), lexer.peek());
+        assert_eq!(Some(Token::new(text, 0..3, TokenKind::Identifier)), lexer.next());
+        assert_eq!(Some(Token::new(text, 3..4, TokenKind::Whitespace)), lexer.peek());
     }
 
     #[test]
     fn test_peek_at_offset() {
         let text = "foo bar";
         let mut lexer = Lexer::new(text);
-        assert_eq!(Some(Token { kind: TokenKind::Identifier, span: Span { text, start_offset: 0, length: "foo".len() } }), lexer.peek_at_offset(0));
-        assert_eq!(Some(Token { kind: TokenKind::Whitespace, span: Span { text, start_offset: 3, length: " ".len() } }), lexer.peek_at_offset(1));
-        assert_eq!(Some(Token { kind: TokenKind::Identifier, span: Span { text, start_offset: 4, length: "bar".len() } }), lexer.peek_at_offset(2));
-        assert_eq!(Some(Token { kind: TokenKind::Identifier, span: Span { text, start_offset: 0, length: "foo".len() } }), lexer.next());
-        assert_eq!(Some(Token { kind: TokenKind::Whitespace, span: Span { text, start_offset: 3, length: " ".len() } }), lexer.peek());
+        assert_eq!(Some(Token::new(text, 0..3, TokenKind::Identifier)), lexer.peek_at_offset(0));
+        assert_eq!(Some(Token::new(text, 3..4, TokenKind::Whitespace)), lexer.peek_at_offset(1));
+        assert_eq!(Some(Token::new(text, 4..7, TokenKind::Identifier)), lexer.peek_at_offset(2));
+        assert_eq!(Some(Token::new(text, 0..3, TokenKind::Identifier)), lexer.next());
+        assert_eq!(Some(Token::new(text, 3..4, TokenKind::Whitespace)), lexer.peek());
     }
 
     #[test]
@@ -189,7 +188,7 @@ mod tests {
         let lexer = Lexer::new(text);
         assert_eq!(
             lexer.collect::<Vec<_>>(),
-            vec![Token { kind: TokenKind::Unknown, span: Span { text, start_offset: 0, length: "§".len() } }]
+            vec![Token::new(text, 0..2, TokenKind::Unknown)]
         );
     }
 
@@ -202,13 +201,13 @@ mod tests {
         assert_eq!(
             lexer.collect::<Vec<_>>(),
             vec![
-                Token { kind: TokenKind::Unknown, span: Span { text, start_offset: 0, length: "👨".len() } },
-                Token { kind: TokenKind::Unknown, span: Span { text, start_offset: 4, length: "‍".len() } },
-                Token { kind: TokenKind::Unknown, span: Span { text, start_offset: 7, length: "👩".len() } },
-                Token { kind: TokenKind::Unknown, span: Span { text, start_offset: 11, length: "‍".len() } },
-                Token { kind: TokenKind::Unknown, span: Span { text, start_offset: 14, length: "👧".len() } },
-                Token { kind: TokenKind::Unknown, span: Span { text, start_offset: 18, length: "‍".len() } },
-                Token { kind: TokenKind::Unknown, span: Span { text, start_offset: 21, length: "👦".len() } },
+                Token::new(text, 0..4, TokenKind::Unknown),
+                Token::new(text, 4..7, TokenKind::Unknown),
+                Token::new(text, 7..11, TokenKind::Unknown),
+                Token::new(text, 11..14, TokenKind::Unknown),
+                Token::new(text, 14..18, TokenKind::Unknown),
+                Token::new(text, 18..21, TokenKind::Unknown),
+                Token::new(text, 21..25, TokenKind::Unknown),
             ]
         );
     }
@@ -219,7 +218,7 @@ mod tests {
         let lexer = Lexer::new(text);
         assert_eq!(
             lexer.collect::<Vec<_>>(),
-            vec![Token { kind: TokenKind::Identifier, span: Span { text, start_offset: 0, length: "foo".len() } }]
+            vec![Token::new(text, 0..3, TokenKind::Identifier)]
         );
     }
 
@@ -229,7 +228,7 @@ mod tests {
         let lexer = Lexer::new(text);
         assert_eq!(
             lexer.collect::<Vec<_>>(),
-            vec![Token { kind: TokenKind::Identifier, span: Span { text, start_offset: 0, length: "foo123".len() } }]
+            vec![Token::new(text, 0..6, TokenKind::Identifier)]
         );
     }
 
@@ -239,7 +238,7 @@ mod tests {
         let lexer = Lexer::new(text);
         assert_eq!(
             lexer.collect::<Vec<_>>(),
-            vec![Token { kind: TokenKind::Identifier, span: Span { text, start_offset: 0, length: "foo_bar".len() } }]
+            vec![Token::new(text, 0..7, TokenKind::Identifier)]
         );
     }
 
@@ -249,7 +248,7 @@ mod tests {
         let lexer = Lexer::new(text);
         assert_eq!(
             lexer.collect::<Vec<_>>(),
-            vec![Token { kind: TokenKind::Identifier, span: Span { text, start_offset: 0, length: "_foo".len() } }]
+            vec![Token::new(text, 0..4, TokenKind::Identifier)]
         );
     }
 
@@ -259,7 +258,7 @@ mod tests {
         let lexer = Lexer::new(text);
         assert_eq!(
             lexer.collect::<Vec<_>>(),
-            vec![Token { kind: TokenKind::Whitespace, span: Span { text, start_offset: 0, length: " \n\n \t ".len() } }]
+            vec![Token::new(text, 0..text.len(), TokenKind::Whitespace)]
         );
     }
 
@@ -270,11 +269,11 @@ mod tests {
         assert_eq!(
             lexer.collect::<Vec<_>>(),
             vec![
-                Token { kind: TokenKind::Integer, span: Span { text, start_offset: 0, length: "123".len() } },
-                Token { kind: TokenKind::Whitespace, span: Span { text, start_offset: 3, length: " ".len() } },
-                Token { kind: TokenKind::Integer, span: Span { text, start_offset: 4, length: "456".len() } },
-                Token { kind: TokenKind::Whitespace, span: Span { text, start_offset: 7, length: " ".len() } },
-                Token { kind: TokenKind::Integer, span: Span { text, start_offset: 8, length: "0".len() } },
+                Token::new(text, 0..3, TokenKind::Integer),
+                Token::new(text, 3..4, TokenKind::Whitespace),
+                Token::new(text, 4..7, TokenKind::Integer),
+                Token::new(text, 7..8, TokenKind::Whitespace),
+                Token::new(text, 8..9, TokenKind::Integer),
             ]
         );
     }
@@ -286,17 +285,17 @@ mod tests {
         assert_eq!(
             lexer.collect::<Vec<_>>(),
             vec![
-                Token { kind: TokenKind::Module, span: Span { text, start_offset: 0, length: "module".len() } },
-                Token { kind: TokenKind::Whitespace, span: Span { text, start_offset: 6, length: " ".len() } },
-                Token { kind: TokenKind::Class, span: Span { text, start_offset: 7, length: "class".len() } },
-                Token { kind: TokenKind::Whitespace, span: Span { text, start_offset: 12, length: " ".len() } },
-                Token { kind: TokenKind::Field, span: Span { text, start_offset: 13, length: "let".len() } },
-                Token { kind: TokenKind::Whitespace, span: Span { text, start_offset: 16, length: " ".len() } },
-                Token { kind: TokenKind::Function, span: Span { text, start_offset: 17, length: "function".len() } },
-                Token { kind: TokenKind::Whitespace, span: Span { text, start_offset: 25, length: " ".len() } },
-                Token { kind: TokenKind::Constant, span: Span { text, start_offset: 26, length: "constant".len() } },
-                Token { kind: TokenKind::Whitespace, span: Span { text, start_offset: 34, length: " ".len() } },
-                Token { kind: TokenKind::Mutable, span: Span { text, start_offset: 35, length: "mutable".len() } },
+                Token::new(text, 0..6, TokenKind::Module),
+                Token::new(text, 6..7, TokenKind::Whitespace),
+                Token::new(text, 7..12, TokenKind::Class),
+                Token::new(text, 12..13, TokenKind::Whitespace),
+                Token::new(text, 13..16, TokenKind::Field),
+                Token::new(text, 16..17, TokenKind::Whitespace),
+                Token::new(text, 17..25, TokenKind::Function),
+                Token::new(text, 25..26, TokenKind::Whitespace),
+                Token::new(text, 26..34, TokenKind::Constant),
+                Token::new(text, 34..35, TokenKind::Whitespace),
+                Token::new(text, 35..42, TokenKind::Mutable),
             ]
         );
     }
@@ -308,12 +307,12 @@ mod tests {
         assert_eq!(
             lexer.collect::<Vec<_>>(),
             vec![
-                Token { kind: TokenKind::Comma, span: Span { text, start_offset: 0, length: ",".len() } },
-                Token { kind: TokenKind::Colon, span: Span { text, start_offset: 1, length: ":".len() } },
-                Token { kind: TokenKind::Semicolon, span: Span { text, start_offset: 2, length: ";".len() } },
-                Token { kind: TokenKind::Equals, span: Span { text, start_offset: 3, length: "=".len() } },
-                Token { kind: TokenKind::Minus, span: Span { text, start_offset: 4, length: "-".len() } },
-                Token { kind: TokenKind::GreaterThan, span: Span { text, start_offset: 5, length: ">".len() } },
+                Token::new(text, 0..1, TokenKind::Comma),
+                Token::new(text, 1..2, TokenKind::Colon),
+                Token::new(text, 2..3, TokenKind::Semicolon),
+                Token::new(text, 3..4, TokenKind::Equals),
+                Token::new(text, 4..5, TokenKind::Minus),
+                Token::new(text, 5..6, TokenKind::GreaterThan),
             ]
         );
     }
@@ -325,10 +324,10 @@ mod tests {
         assert_eq!(
             lexer.collect::<Vec<_>>(),
             vec![
-                Token { kind: TokenKind::LeftBrace, span: Span { text, start_offset: 0, length: "{".len() } },
-                Token { kind: TokenKind::RightBrace, span: Span { text, start_offset: 1, length: "}".len() } },
-                Token { kind: TokenKind::LeftParentheses, span: Span { text, start_offset: 2, length: "(".len() } },
-                Token { kind: TokenKind::RightParentheses, span: Span { text, start_offset: 3, length: ")".len() } },
+                Token::new(text, 0..1, TokenKind::LeftBrace),
+                Token::new(text, 1..2, TokenKind::RightBrace),
+                Token::new(text, 2..3, TokenKind::LeftParentheses),
+                Token::new(text, 3..4, TokenKind::RightParentheses),
             ]
         );
     }
@@ -340,26 +339,26 @@ mod tests {
         assert_eq!(
             lexer.collect::<Vec<_>>(),
             vec![
-                Token { kind: TokenKind::Function, span: Span { text, start_offset: 0, length: "function".len() } },
-                Token { kind: TokenKind::Whitespace, span: Span { text, start_offset: 8, length: " ".len() } },
-                Token { kind: TokenKind::Identifier, span: Span { text, start_offset: 9, length: "foo".len() } },
-                Token { kind: TokenKind::LeftParentheses, span: Span { text, start_offset: 12, length: "(".len() } },
-                Token { kind: TokenKind::Identifier, span: Span { text, start_offset: 13, length: "x".len() } },
-                Token { kind: TokenKind::Colon, span: Span { text, start_offset: 14, length: ":".len() } },
-                Token { kind: TokenKind::Whitespace, span: Span { text, start_offset: 15, length: " ".len() } },
-                Token { kind: TokenKind::Identifier, span: Span { text, start_offset: 16, length: "Integer".len() } },
-                Token { kind: TokenKind::RightParentheses, span: Span { text, start_offset: 23, length: ")".len() } },
-                Token { kind: TokenKind::Whitespace, span: Span { text, start_offset: 24, length: " ".len() } },
-                Token { kind: TokenKind::Minus, span: Span { text, start_offset: 25, length: "-".len() } },
-                Token { kind: TokenKind::GreaterThan, span: Span { text, start_offset: 26, length: ">".len() } },
-                Token { kind: TokenKind::Whitespace, span: Span { text, start_offset: 27, length: " ".len() } },
-                Token { kind: TokenKind::Identifier, span: Span { text, start_offset: 28, length: "Integer".len() } },
-                Token { kind: TokenKind::Whitespace, span: Span { text, start_offset: 35, length: " ".len() } },
-                Token { kind: TokenKind::LeftBrace, span: Span { text, start_offset: 36, length: "{".len() } },
-                Token { kind: TokenKind::Whitespace, span: Span { text, start_offset: 37, length: " ".len() } },
-                Token { kind: TokenKind::Identifier, span: Span { text, start_offset: 38, length: "x".len() } },
-                Token { kind: TokenKind::Whitespace, span: Span { text, start_offset: 39, length: " ".len() } },
-                Token { kind: TokenKind::RightBrace, span: Span { text, start_offset: 40, length: "}".len() } },
+                Token::new(text, 0..8, TokenKind::Function),
+                Token::new(text, 8..9, TokenKind::Whitespace),
+                Token::new(text, 9..12, TokenKind::Identifier),
+                Token::new(text, 12..13, TokenKind::LeftParentheses),
+                Token::new(text, 13..14, TokenKind::Identifier),
+                Token::new(text, 14..15, TokenKind::Colon),
+                Token::new(text, 15..16, TokenKind::Whitespace),
+                Token::new(text, 16..23, TokenKind::Identifier),
+                Token::new(text, 23..24, TokenKind::RightParentheses),
+                Token::new(text, 24..25, TokenKind::Whitespace),
+                Token::new(text, 25..26, TokenKind::Minus),
+                Token::new(text, 26..27, TokenKind::GreaterThan),
+                Token::new(text, 27..28, TokenKind::Whitespace),
+                Token::new(text, 28..35, TokenKind::Identifier),
+                Token::new(text, 35..36, TokenKind::Whitespace),
+                Token::new(text, 36..37, TokenKind::LeftBrace),
+                Token::new(text, 37..38, TokenKind::Whitespace),
+                Token::new(text, 38..39, TokenKind::Identifier),
+                Token::new(text, 39..40, TokenKind::Whitespace),
+                Token::new(text, 40..41, TokenKind::RightBrace),
             ]
         );
     }
@@ -369,7 +368,7 @@ mod tests {
         let text = "->";
         let mut lexer = Lexer::new(text);
         let result = lexer.next_kind(TokenKind::RightArrow);
-        assert_eq!(result, Some(Token { kind: TokenKind::RightArrow, span: Span { text, start_offset: 0, length: "->".len() } }));
+        assert_eq!(result, Some(Token::new(text, 0..2, TokenKind::RightArrow)));
         assert_eq!(lexer.next(), None);
     }
 
@@ -378,7 +377,7 @@ mod tests {
         let text = "::";
         let mut lexer = Lexer::new(text);
         let result = lexer.next_kind(TokenKind::PathSeparator);
-        assert_eq!(result, Some(Token { kind: TokenKind::PathSeparator, span: Span { text, start_offset: 0, length: "::".len() } }));
+        assert_eq!(result, Some(Token::new(text, 0..2, TokenKind::PathSeparator)));
         assert_eq!(lexer.next(), None);
     }
 
@@ -388,7 +387,7 @@ mod tests {
         let mut lexer = Lexer::new(text);
         let result = lexer.next_kind(TokenKind::RightArrow);
         assert_eq!(result, None);
-        assert_eq!(lexer.next(), Some(Token { kind: TokenKind::Minus, span: Span { text, start_offset: 0, length: "-".len() } }));
+        assert_eq!(lexer.next(), Some(Token::new(text, 0..1, TokenKind::Minus)));
     }
 
     #[test]
@@ -396,8 +395,8 @@ mod tests {
         let text = "->";
         let mut lexer = Lexer::new(text);
         let result = lexer.peek_kind(TokenKind::RightArrow);
-        assert_eq!(result, Some(Token { kind: TokenKind::RightArrow, span: Span { text, start_offset: 0, length: "->".len() } }));
-        assert_eq!(lexer.peek(), Some(Token { kind: TokenKind::Minus, span: Span { text, start_offset: 0, length: "-".len() } }));
+        assert_eq!(result, Some(Token::new(text, 0..2, TokenKind::RightArrow)));
+        assert_eq!(lexer.peek(), Some(Token::new(text, 0..1, TokenKind::Minus)));
     }
 
     #[test]
@@ -405,8 +404,8 @@ mod tests {
         let text = "::";
         let mut lexer = Lexer::new(text);
         let result = lexer.peek_kind(TokenKind::PathSeparator);
-        assert_eq!(result, Some(Token { kind: TokenKind::PathSeparator, span: Span { text, start_offset: 0, length: "::".len() } }));
-        assert_eq!(lexer.peek(), Some(Token { kind: TokenKind::Colon, span: Span { text, start_offset: 0, length: ":".len() } }));
+        assert_eq!(result, Some(Token::new(text, 0..2, TokenKind::PathSeparator)));
+        assert_eq!(lexer.peek(), Some(Token::new(text, 0..1, TokenKind::Colon)));
     }
 
     #[test]
@@ -422,8 +421,8 @@ mod tests {
         let text = "foo ->";
         let mut lexer = Lexer::new(text);
         let result = lexer.peek_kind_at_offset(TokenKind::RightArrow, 2);
-        assert_eq!(result, Some(Token { kind: TokenKind::RightArrow, span: Span { text, start_offset: 4, length: "->".len() } }));
-        assert_eq!(lexer.peek(), Some(Token { kind: TokenKind::Identifier, span: Span { text, start_offset: 0, length: "foo".len() } }));
+        assert_eq!(result, Some(Token::new(text, 4..6, TokenKind::RightArrow)));
+        assert_eq!(lexer.peek(), Some(Token::new(text, 0..3, TokenKind::Identifier)));
     }
 
     #[test]
@@ -431,7 +430,7 @@ mod tests {
         let text = "foo ::";
         let mut lexer = Lexer::new(text);
         let result = lexer.peek_kind_at_offset(TokenKind::PathSeparator, 2);
-        assert_eq!(result, Some(Token { kind: TokenKind::PathSeparator, span: Span { text, start_offset: 4, length: "::".len() } }));
+        assert_eq!(result, Some(Token::new(text, 4..6, TokenKind::PathSeparator)));
     }
 
     #[test]
@@ -439,7 +438,7 @@ mod tests {
         let text = "->";
         let mut lexer = Lexer::new(text);
         let result = lexer.peek_kind_at_offset(TokenKind::RightArrow, 0);
-        assert_eq!(result, Some(Token { kind: TokenKind::RightArrow, span: Span { text, start_offset: 0, length: "->".len() } }));
+        assert_eq!(result, Some(Token::new(text, 0..2, TokenKind::RightArrow)));
     }
 
     #[test]
