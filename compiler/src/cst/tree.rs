@@ -9,6 +9,15 @@ pub struct Tree<'text> {
     pub(super) children: Vec<Node<'text>>,
 }
 
+impl<'text> Tree<'text> {
+    pub fn new(kind: TreeKind, children: impl Into<Vec<Node<'text>>>) -> Self {
+        Self {
+            kind,
+            children: children.into(),
+        }
+    }
+}
+
 /// A node in the CST.
 ///
 /// A node is either a leaf node (a token) or a composite node (a tree).

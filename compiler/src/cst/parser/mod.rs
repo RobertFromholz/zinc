@@ -95,6 +95,10 @@ impl<'text> Parser<'text> {
     }
 
     /// Consume all whitespace tokens.
+    ///
+    /// The parser calls this method before consuming tokens. Unlike in `open`, we don't check
+    /// whether we are at the top of the CST since you can't consume a token until you have opened a
+    /// node.
     fn consume_whitespace(&mut self) {
         while let Some(token) = self.lexer.peek() {
             if token.kind != TokenKind::Whitespace {
@@ -107,23 +111,27 @@ impl<'text> Parser<'text> {
 
     /// Returns the next node if it is of a specific type.
     fn peek(&mut self, kind: TokenKind) -> Option<TokenKind> {
+        self.consume_whitespace();
         self.lexer.peek_kind(kind)
             .map(|token| token.kind)
     }
 
     /// Returns the next node if it is of a specific type.
     fn peek_at_offset(&mut self, kind: TokenKind, offset: usize) -> Option<TokenKind> {
+        self.consume_whitespace();
         self.lexer.peek_kind_at_offset(kind, offset)
             .map(|token| token.kind)
     }
 
     /// Returns whether the next token is of a specific type.
     fn at(&mut self, kind: TokenKind) -> bool {
+        self.consume_whitespace();
         self.lexer.peek_kind(kind).is_some()
     }
 
     /// Returns whether the next token is of the provided types.
     fn at_any(&mut self, kinds: &[TokenKind]) -> Option<TokenKind> {
+        self.consume_whitespace();
         for kind in kinds {
             if self.at(*kind) {
                 return Some(*kind);
@@ -134,6 +142,7 @@ impl<'text> Parser<'text> {
 
     /// Returns whether the end of the file has been reached.
     fn end_of_file(&mut self) -> bool {
+        self.consume_whitespace();
         self.lexer.peek().is_none()
     }
 }
