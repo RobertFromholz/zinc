@@ -31,12 +31,16 @@ pub enum TokenKind {
 
     /// `class`
     Class,
+
     /// `let`
     Field,
+
     /// `function`
     Function,
+
     /// `constant`
     Constant,
+
     /// `mutable`
     Mutable,
 
@@ -57,19 +61,28 @@ pub enum TokenKind {
 
     /// `-`
     Minus,
+    
+    /// `<`
+    LessThan,
+
     /// `>`
     GreaterThan,
+
     /// `->`
     RightArrow,
+
     /// `::`
     PathSeparator,
 
     /// `{`
     LeftBrace,
+
     /// `}`
     RightBrace,
+
     /// `(`
     LeftParentheses,
+    
     /// `)`
     RightParentheses,
 
@@ -122,6 +135,7 @@ impl fmt::Display for TokenKind {
             TokenKind::Colon => ":",
             TokenKind::Equals => "=",
             TokenKind::Minus => "-",
+            TokenKind::LessThan => "<",
             TokenKind::GreaterThan => ">",
             TokenKind::RightArrow => "->",
             TokenKind::PathSeparator => "::",

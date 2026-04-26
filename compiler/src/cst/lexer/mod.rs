@@ -81,6 +81,7 @@ impl<'text> Lexer<'text> {
             ':' => TokenKind::Colon,
             '=' => TokenKind::Equals,
             '-' => TokenKind::Minus,
+            '<' => TokenKind::LessThan,
             '>' => TokenKind::GreaterThan,
             '{' => TokenKind::LeftBrace,
             '}' => TokenKind::RightBrace,
@@ -300,7 +301,7 @@ mod tests {
 
     #[test]
     fn test_punctuation() {
-        let text = ",:;=->";
+        let text = ",:;=-><";
         let lexer = Lexer::new(text);
         assert_eq!(
             lexer.collect::<Vec<_>>(),
@@ -311,6 +312,7 @@ mod tests {
                 Token::new(text, 3..4, TokenKind::Equals),
                 Token::new(text, 4..5, TokenKind::Minus),
                 Token::new(text, 5..6, TokenKind::GreaterThan),
+                Token::new(text, 6..7, TokenKind::LessThan),
             ]
         );
     }
