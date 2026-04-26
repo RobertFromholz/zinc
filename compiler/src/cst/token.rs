@@ -29,8 +29,6 @@ pub enum TokenKind {
     /// An integer literal.
     Integer,
 
-    /// `module`
-    Module,
     /// `class`
     Class,
     /// `let`
@@ -114,7 +112,6 @@ impl fmt::Display for TokenKind {
             TokenKind::Whitespace => "whitespace",
             TokenKind::Identifier => "identifier",
             TokenKind::Integer => "integer",
-            TokenKind::Module => "module",
             TokenKind::Class => "class",
             TokenKind::Field => "let",
             TokenKind::Function => "function",
@@ -142,7 +139,6 @@ impl TryFrom<&str> for TokenKind {
 
     fn try_from(value: &str) -> Result<Self, Self::Error> {
         match value {
-            "module" => Ok(TokenKind::Module),
             "class" => Ok(TokenKind::Class),
             "let" => Ok(TokenKind::Field),
             "function" => Ok(TokenKind::Function),

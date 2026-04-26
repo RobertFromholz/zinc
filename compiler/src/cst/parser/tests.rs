@@ -17,21 +17,3 @@ fn tree<'text>(kind: TreeKind, children: impl Into<Vec<Node<'text>>>) -> Node<'t
 fn token(text: &'_ str, range: std::ops::Range<usize>, kind: TokenKind) -> Node<'_> {
     Node::Token(Token::new(text, range, kind))
 }
-
-#[test]
-fn parse_module() {
-    let text = r"
-        module foo;
-    ";
-    verify(text, &[
-        token(text, 0..9, TokenKind::Whitespace),
-        tree(TreeKind::Module, &[
-            token(text, 9..15, TokenKind::Module),
-            token(text, 15..16, TokenKind::Whitespace),
-            token(text, 16..19, TokenKind::Identifier),
-            token(text, 19..20, TokenKind::Semicolon),
-        ]),
-        token(text, 20..25, TokenKind::Whitespace),
-        tree(TreeKind::Items, &[])
-    ]);
-}

@@ -280,22 +280,20 @@ mod tests {
 
     #[test]
     fn test_keyword() {
-        let text = "module class let function constant mutable";
+        let text = "class let function constant mutable";
         let lexer = Lexer::new(text);
         assert_eq!(
             lexer.collect::<Vec<_>>(),
             vec![
-                Token::new(text, 0..6, TokenKind::Module),
-                Token::new(text, 6..7, TokenKind::Whitespace),
-                Token::new(text, 7..12, TokenKind::Class),
-                Token::new(text, 12..13, TokenKind::Whitespace),
-                Token::new(text, 13..16, TokenKind::Field),
-                Token::new(text, 16..17, TokenKind::Whitespace),
-                Token::new(text, 17..25, TokenKind::Function),
-                Token::new(text, 25..26, TokenKind::Whitespace),
-                Token::new(text, 26..34, TokenKind::Constant),
-                Token::new(text, 34..35, TokenKind::Whitespace),
-                Token::new(text, 35..42, TokenKind::Mutable),
+                Token::new(text, 0..5, TokenKind::Class),
+                Token::new(text, 5..6, TokenKind::Whitespace),
+                Token::new(text, 6..9, TokenKind::Field),
+                Token::new(text, 9..10, TokenKind::Whitespace),
+                Token::new(text, 10..18, TokenKind::Function),
+                Token::new(text, 18..19, TokenKind::Whitespace),
+                Token::new(text, 19..27, TokenKind::Constant),
+                Token::new(text, 27..28, TokenKind::Whitespace),
+                Token::new(text, 28..35, TokenKind::Mutable),
             ]
         );
     }

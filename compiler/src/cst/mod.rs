@@ -10,7 +10,6 @@ mod tree;
 
 use std::ops::RangeBounds;
 use token::{Token, TokenKind};
-use tree::{Node, Tree, TreeKind};
 
 /// A substring in the source code.
 ///

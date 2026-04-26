@@ -6,25 +6,8 @@ use crate::cst::tree::TreeKind;
 impl<'text> Parser<'text> {
     pub fn file(&mut self) {
         let marker = self.open();
-        if self.at(TokenKind::Module) {
-            self.module();
-        } else {
-            self.error("expected 'module'");
-        }
         self.items(None);
         self.close(marker, TreeKind::File);
-    }
-
-    pub fn module(&mut self) {
-        assert!(self.at(TokenKind::Module));
-        let marker = self.open();
-        self.expect(TokenKind::Module);
-        self.expect(TokenKind::Identifier);
-        if self.at(TokenKind::LeftParentheses) {
-            self.parameters();
-        }
-        self.expect(TokenKind::Semicolon);
-        self.close(marker, TreeKind::Module);
     }
 
     const ITEM_FIRST: &'static [TokenKind] = &[TokenKind::Class, TokenKind::Constant, TokenKind::Function, TokenKind::Field];
