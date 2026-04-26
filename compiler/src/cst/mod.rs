@@ -8,13 +8,14 @@ mod parser;
 mod token;
 mod tree;
 
+use std::fmt;
 use std::ops::RangeBounds;
 use token::{Token, TokenKind};
 
 /// A substring in the source code.
 ///
 /// Used by nodes in the CST to reference what text in the source code they represent.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub struct Span<'text> {
     text: &'text str,
     start_offset: usize,
@@ -73,6 +74,16 @@ impl<'text> Span<'text> {
 
     pub fn length(self) -> usize {
         self.length
+    }
+}
+
+impl fmt::Debug for Span<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Span")
+            .field("text", &self.text())
+            .field("start_offset", &self.start_offset())
+            .field("length", &self.length())
+            .finish()
     }
 }
 

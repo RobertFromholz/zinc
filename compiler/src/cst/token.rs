@@ -61,7 +61,7 @@ pub enum TokenKind {
 
     /// `-`
     Minus,
-    
+
     /// `<`
     LessThan,
 
@@ -82,7 +82,7 @@ pub enum TokenKind {
 
     /// `(`
     LeftParentheses,
-    
+
     /// `)`
     RightParentheses,
 

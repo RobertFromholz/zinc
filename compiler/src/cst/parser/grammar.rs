@@ -42,7 +42,6 @@ impl<'text> Parser<'text> {
         assert!(self.at(TokenKind::Class));
         self.expect(TokenKind::Class);
         self.expect(TokenKind::Identifier);
-        self.parameters();
         if self.at(TokenKind::Colon) {
             self.inherits();
         }
@@ -92,8 +91,9 @@ impl<'text> Parser<'text> {
 
     fn parameters(&mut self) {
         let marker = self.open();
+        self.expect(TokenKind::LeftParentheses);
         while !self.end_of_file() {
-            if self.at_any(Self::PARAMETER_FIRST).is_some() {
+            if self.at_any(Self::PARAMETER_RECOVERY).is_some() {
                 break;
             }
             if self.at_any(Self::ITEM_FIRST).is_some() {
@@ -105,6 +105,7 @@ impl<'text> Parser<'text> {
                 self.consume_with_error("expected 'parameter'")
             }
         }
+        self.expect(TokenKind::RightParentheses);
         self.close(marker, TreeKind::Parameters);
     }
 
@@ -155,10 +156,17 @@ impl<'text> Parser<'text> {
     const EXPRESSION_FIRST: &'static [TokenKind] = &[TokenKind::Identifier];
 
     fn expression(&mut self) {
-
+        // TODO: Implement expression parsing.
+        let marker = self.open();
+        self.expect(TokenKind::Identifier);
+        self.close(marker, TreeKind::PathExpression);
     }
 
     fn block(&mut self) {
-
+        // TODO: Implement expression parsing.
+        let marker = self.open();
+        self.expect(TokenKind::LeftBrace);
+        self.expect(TokenKind::RightBrace);
+        self.close(marker, TreeKind::BlockExpression);
     }
 }
