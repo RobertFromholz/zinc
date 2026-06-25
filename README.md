@@ -1,2 +1,5 @@
 # zinc
-A hobby programming language based on Java and Rust.
+
+Zinc is a hobby compiler for a subset of Rust.
+
+The goal for the compiler is to be able to compile a program and emit an intermediate representation (bytecode).
