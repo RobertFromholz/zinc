@@ -275,7 +275,7 @@ mod tests {
             let marker = stream.open();
             let marker = stream.close(marker, TreeKind::Function);
             let marker = stream.open_before(marker);
-            let marker = stream.close(marker, TreeKind::Class);
+            let marker = stream.close(marker, TreeKind::Struct);
             let marker = stream.open_before(marker);
             let marker = stream.close(marker, TreeKind::Module);
             let marker = stream.open_before(marker);
@@ -283,7 +283,7 @@ mod tests {
         }, vec![
             Event::Start { kind: TreeKind::File, previous: None },
             Event::Start { kind: TreeKind::Module, previous: Some(6) },
-            Event::Start { kind: TreeKind::Class, previous: Some(4) },
+            Event::Start { kind: TreeKind::Struct, previous: Some(4) },
             Event::Start { kind: TreeKind::Function, previous: Some(2) },
             Event::Finish,
             Event::Finish,

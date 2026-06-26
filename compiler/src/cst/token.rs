@@ -29,20 +29,14 @@ pub enum TokenKind {
     /// An integer literal.
     Integer,
 
-    /// `class`
-    Class,
+    /// `struct`
+    Struct,
 
     /// `let`
-    Field,
+    Let,
 
-    /// `function`
-    Function,
-
-    /// `constant`
-    Constant,
-
-    /// `mutable`
-    Mutable,
+    /// `fn`
+    Fn,
 
     /// `,`
     Comma,
@@ -61,9 +55,6 @@ pub enum TokenKind {
 
     /// `-`
     Minus,
-
-    /// `<`
-    LessThan,
 
     /// `>`
     GreaterThan,
@@ -125,17 +116,14 @@ impl fmt::Display for TokenKind {
             TokenKind::Whitespace => "whitespace",
             TokenKind::Identifier => "identifier",
             TokenKind::Integer => "integer",
-            TokenKind::Class => "class",
-            TokenKind::Field => "let",
-            TokenKind::Function => "function",
-            TokenKind::Constant => "constant",
-            TokenKind::Mutable => "mutable",
+            TokenKind::Struct => "struct",
+            TokenKind::Let => "let",
+            TokenKind::Fn => "fn",
             TokenKind::Comma => ",",
             TokenKind::Semicolon => ";",
             TokenKind::Colon => ":",
             TokenKind::Equals => "=",
             TokenKind::Minus => "-",
-            TokenKind::LessThan => "<",
             TokenKind::GreaterThan => ">",
             TokenKind::RightArrow => "->",
             TokenKind::PathSeparator => "::",
@@ -153,11 +141,9 @@ impl TryFrom<&str> for TokenKind {
 
     fn try_from(value: &str) -> Result<Self, Self::Error> {
         match value {
-            "class" => Ok(TokenKind::Class),
-            "let" => Ok(TokenKind::Field),
-            "function" => Ok(TokenKind::Function),
-            "constant" => Ok(TokenKind::Constant),
-            "mutable" => Ok(TokenKind::Mutable),
+            "struct" => Ok(TokenKind::Struct),
+            "let" => Ok(TokenKind::Let),
+            "fn" => Ok(TokenKind::Fn),
             _ => Err(())
         }
     }

@@ -81,7 +81,6 @@ impl<'text> Lexer<'text> {
             ':' => TokenKind::Colon,
             '=' => TokenKind::Equals,
             '-' => TokenKind::Minus,
-            '<' => TokenKind::LessThan,
             '>' => TokenKind::GreaterThan,
             '{' => TokenKind::LeftBrace,
             '}' => TokenKind::RightBrace,
@@ -281,20 +280,16 @@ mod tests {
 
     #[test]
     fn test_keyword() {
-        let text = "class let function constant mutable";
+        let text = "struct let fn";
         let lexer = Lexer::new(text);
         assert_eq!(
             lexer.collect::<Vec<_>>(),
             vec![
-                Token::new(text, 0..5, TokenKind::Class),
-                Token::new(text, 5..6, TokenKind::Whitespace),
-                Token::new(text, 6..9, TokenKind::Field),
-                Token::new(text, 9..10, TokenKind::Whitespace),
-                Token::new(text, 10..18, TokenKind::Function),
-                Token::new(text, 18..19, TokenKind::Whitespace),
-                Token::new(text, 19..27, TokenKind::Constant),
-                Token::new(text, 27..28, TokenKind::Whitespace),
-                Token::new(text, 28..35, TokenKind::Mutable),
+                Token::new(text, 0..6, TokenKind::Struct),
+                Token::new(text, 6..7, TokenKind::Whitespace),
+                Token::new(text, 7..10, TokenKind::Let),
+                Token::new(text, 10..11, TokenKind::Whitespace),
+                Token::new(text, 11..13, TokenKind::Fn),
             ]
         );
     }
@@ -312,7 +307,7 @@ mod tests {
                 Token::new(text, 3..4, TokenKind::Equals),
                 Token::new(text, 4..5, TokenKind::Minus),
                 Token::new(text, 5..6, TokenKind::GreaterThan),
-                Token::new(text, 6..7, TokenKind::LessThan),
+                Token::new(text, 6..7, TokenKind::Unknown),
             ]
         );
     }
@@ -334,33 +329,50 @@ mod tests {
 
     #[test]
     fn test_function() {
-        let text = "function foo(x: Integer) -> Integer { x }";
+        let text = "fn foo(x: Bar) -> Bar { x }";
         let lexer = Lexer::new(text);
         assert_eq!(
             lexer.collect::<Vec<_>>(),
             vec![
-                Token::new(text, 0..8, TokenKind::Function),
-                Token::new(text, 8..9, TokenKind::Whitespace),
-                Token::new(text, 9..12, TokenKind::Identifier),
-                Token::new(text, 12..13, TokenKind::LeftParentheses),
-                Token::new(text, 13..14, TokenKind::Identifier),
-                Token::new(text, 14..15, TokenKind::Colon),
-                Token::new(text, 15..16, TokenKind::Whitespace),
-                Token::new(text, 16..23, TokenKind::Identifier),
-                Token::new(text, 23..24, TokenKind::RightParentheses),
-                Token::new(text, 24..25, TokenKind::Whitespace),
-                Token::new(text, 25..26, TokenKind::Minus),
-                Token::new(text, 26..27, TokenKind::GreaterThan),
-                Token::new(text, 27..28, TokenKind::Whitespace),
-                Token::new(text, 28..35, TokenKind::Identifier),
-                Token::new(text, 35..36, TokenKind::Whitespace),
-                Token::new(text, 36..37, TokenKind::LeftBrace),
-                Token::new(text, 37..38, TokenKind::Whitespace),
-                Token::new(text, 38..39, TokenKind::Identifier),
-                Token::new(text, 39..40, TokenKind::Whitespace),
-                Token::new(text, 40..41, TokenKind::RightBrace),
+                Token::new(text, 0..2, TokenKind::Fn),
+                Token::new(text, 2..3, TokenKind::Whitespace),
+                Token::new(text, 3..6, TokenKind::Identifier),
+                Token::new(text, 6..7, TokenKind::LeftParentheses),
+                Token::new(text, 7..8, TokenKind::Identifier),
+                Token::new(text, 8..9, TokenKind::Colon),
+                Token::new(text, 9..10, TokenKind::Whitespace),
+                Token::new(text, 10..13, TokenKind::Identifier),
+                Token::new(text, 13..14, TokenKind::RightParentheses),
+                Token::new(text, 14..15, TokenKind::Whitespace),
+                Token::new(text, 15..16, TokenKind::Minus),
+                Token::new(text, 16..17, TokenKind::GreaterThan),
+                Token::new(text, 17..18, TokenKind::Whitespace),
+                Token::new(text, 18..21, TokenKind::Identifier),
+                Token::new(text, 21..22, TokenKind::Whitespace),
+                Token::new(text, 22..23, TokenKind::LeftBrace),
+                Token::new(text, 23..24, TokenKind::Whitespace),
+                Token::new(text, 24..25, TokenKind::Identifier),
+                Token::new(text, 25..26, TokenKind::Whitespace),
+                Token::new(text, 26..27, TokenKind::RightBrace),
             ]
         );
+    }
+
+    #[test]
+    fn test_struct() {
+        let text = "struct Foo {}";
+        let lexer = Lexer::new(text);
+        assert_eq!(
+            lexer.collect::<Vec<_>>(),
+            vec![
+                Token::new(text, 0..6, TokenKind::Struct),
+                Token::new(text, 6..7, TokenKind::Whitespace),
+                Token::new(text, 7..10, TokenKind::Identifier),
+                Token::new(text, 10..11, TokenKind::Whitespace),
+                Token::new(text, 11..12, TokenKind::LeftBrace),
+                Token::new(text, 12..13, TokenKind::RightBrace),
+            ]
+        )
     }
 
     #[test]
