@@ -29,12 +29,14 @@ struct QueryData {
     dependencies: HashSet<QueryId>,
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, Debug)]
 enum QueryState {
+    /// This query has been created but has not been computed.
+    Created,
     /// This query is being computed.
     Computing,
     /// This query has already been computed.
-    Computed
+    Computed(Rc<dyn Any>)
 }
 
 impl Context {
@@ -72,13 +74,19 @@ impl Handle<'_> {
         let query = {
             let mut queries = context.queries.borrow_mut();
             let query = QueryId::new::<Q>(key);
-            queries.entry(query.clone()).insert_entry(QueryData {
-                state: QueryState::Computing,
+            queries.entry(query.clone()).or_insert_with(|| QueryData {
+                state: QueryState::Created,
                 dependencies: HashSet::new(),
             });
             if let Some(parent_query) = &self.query {
                 let parent = queries.get_mut(parent_query).unwrap();
                 parent.dependencies.insert(query.clone());
+            }
+            let data = queries.get_mut(&query).unwrap();
+            match &data.state {
+                QueryState::Created => data.state = QueryState::Computing,
+                QueryState::Computing => panic!("Cycle detected: {:?} -> {:?}", self.query, query),
+                QueryState::Computed(value) => return value.downcast_ref::<Q::Output>().unwrap().clone(),
             }
             query
         };
@@ -90,7 +98,7 @@ impl Handle<'_> {
         {
             let mut queries = context.queries.borrow_mut();
             queries.entry(query).and_modify(|data| {
-                data.state = QueryState::Computed;
+                data.state = QueryState::Computed(Rc::new(output.clone()));
             });
         };
         output
@@ -132,7 +140,7 @@ impl<T: Any + PartialEq + Eq + Hash + Debug + 'static> QueryKey for T {
 // A query. The same query invoked with the same arguments will always produce the same value.
 pub trait Query: 'static  {
     type Key: QueryKey;
-    type Output;
+    type Output: Clone;
 
     fn execute(handle: Handle<'_>, key: &Self::Key) -> Self::Output;
 }
@@ -234,7 +242,7 @@ mod tests {
             assert_eq!(queries.len(), 3);
             let query = QueryId::new::<AddQuery>((2, 3));
             let data = queries.get(&query).unwrap();
-            assert_eq!(data.state, QueryState::Computed);
+            assert!(matches!(data.state, QueryState::Computed(_)));
             assert_eq!(data.dependencies, HashSet::from([
                 QueryId::new::<LiteralQuery>(2),
                 QueryId::new::<LiteralQuery>(3),
