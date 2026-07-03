@@ -7,6 +7,7 @@
 //! a unique object given to every query. The query uses the handle to call other queries. In turn,
 //! the handle records every query invoked to generate a dependency graph.
 
+use crate::dot;
 use std::any::{Any, TypeId};
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
@@ -36,7 +37,7 @@ enum QueryState {
     /// This query is being computed.
     Computing,
     /// This query has already been computed.
-    Computed(Rc<dyn Any>)
+    Computed(Rc<dyn Any>),
 }
 
 impl Context {
@@ -138,7 +139,7 @@ impl<T: Any + PartialEq + Eq + Hash + Debug + 'static> QueryKey for T {
 }
 
 // A query. The same query invoked with the same arguments will always produce the same value.
-pub trait Query: 'static  {
+pub trait Query: 'static {
     type Key: QueryKey;
     type Output: Clone;
 
@@ -156,7 +157,7 @@ struct QueryId {
     // In the future, it could also be used when serializing and deserializing a query to disk.
     // Although this might be problematic since the name isn't guaranteed to be unique.
     name: &'static str,
-    key: Rc<dyn QueryKey>
+    key: Rc<dyn QueryKey>,
 }
 
 impl QueryId {
@@ -165,7 +166,7 @@ impl QueryId {
         Self {
             type_id: TypeId::of::<Q>(),
             name: std::any::type_name::<Q>(),
-            key: Rc::new(key)
+            key: Rc::new(key),
         }
     }
 }
@@ -188,6 +189,39 @@ impl Hash for QueryId {
 impl fmt::Debug for QueryId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}({:?})", self.name, self.key)
+    }
+}
+
+impl dot::Graph<QueryId, (QueryId, QueryId)> for Context {
+    fn nodes(&self) -> Vec<QueryId> {
+        self.queries.borrow()
+            .keys()
+            .cloned()
+            .collect()
+    }
+
+    fn edges(&self) -> Vec<(QueryId, QueryId)> {
+        self.queries.borrow().iter()
+            .flat_map(|(query, data)| {
+                data.dependencies.iter()
+                    .map(|dependency| (query.clone(), dependency.clone()))
+            }).collect()
+    }
+}
+
+impl dot::Node for QueryId {
+    fn id(&self) -> String {
+        format!("{:?}", self)
+    }
+}
+
+impl dot::Edge for (QueryId, QueryId) {
+    fn left(&self) -> String {
+        format!("{:?}", self.0)
+    }
+
+    fn right(&self) -> String {
+        format!("{:?}", self.1)
     }
 }
 
@@ -248,5 +282,6 @@ mod tests {
                 QueryId::new::<LiteralQuery>(3),
             ]));
         }
+        // context.draw_and_open_graph().unwrap();
     }
 }

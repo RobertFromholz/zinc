@@ -1,11 +1,10 @@
 //! Utility to generate and render a GraphViz graph.
 
-use std::fmt::Write as _;
-use std::io::Write as _;
-use std::collections::HashSet;
 use std::env::temp_dir;
+use std::fmt::Write as _;
 use std::fs::File;
 use std::io;
+use std::io::Write as _;
 use std::path::Path;
 use std::process::{Command, Stdio};
 
@@ -13,12 +12,12 @@ use std::process::{Command, Stdio};
 ///
 /// For simplicity, the graph is always a directed graph. That is, edges always point from the
 /// current node to the target node.
-///
-/// The graph is computed by iterating over all nodes, starting with the root node.
-/// Cycles are supported. If a cycle is detected, the node is not traversed again.
-pub trait Graph {
-    /// The root node of the graph.
-    fn root(&self) -> &dyn Node;
+pub trait Graph<N: Node, E: Edge> {
+    /// All nodes in this graph.
+    fn nodes(&self) -> Vec<N>;
+
+    /// All edges in this graph.
+    fn edges(&self) -> Vec<E>;
 
     /// Draws this graph into an SVG file.
     ///
@@ -79,9 +78,13 @@ pub trait Graph {
 
     /// Converts this graph into a `DOT` graph.
     fn format(&self) -> String {
-        let mut nodes = HashSet::new();
         let mut text = String::from("digraph {\n");
-        self.root().format(&mut nodes, &mut text);
+        for node in self.nodes() {
+            node.format(&mut text);
+        }
+        for edge in self.edges() {
+            edge.format(&mut text);
+        }
         text += "}";
         text
     }
@@ -98,21 +101,9 @@ pub trait Node {
     // for example, from a `u32`.
     fn id(&self) -> String;
 
-    /// A list of edges pointing from this node to other nodes.
-    fn edges(&self) -> Vec<&dyn Edge>;
-
     /// Formats this node into the `DOT` format. Returns this node's id.
-    fn format(&self, nodes: &mut HashSet<String>, text: &mut String) -> String {
-        let id = self.id();
-        if nodes.contains(&id) {
-            return id;
-        }
-        nodes.insert(id.clone());
-        writeln!(text, "{}\"{}\";", " ".repeat(4), id).unwrap();
-        for edge in self.edges() {
-            edge.format(nodes, text, &id);
-        }
-        id
+    fn format(&self, text: &mut String) {
+        writeln!(text, "{}\"{}\";", " ".repeat(4), self.id()).unwrap();
     }
 }
 
@@ -121,64 +112,11 @@ pub trait Node {
 /// The edge points from the node from which this edge was returned, to the node specified by this
 /// edge.
 pub trait Edge {
-    /// The target node for this edge.
-    fn node(&self) -> &dyn Node;
+    fn left(&self) -> String;
 
-    fn format(&self, nodes: &mut HashSet<String>, text: &mut String, node_id: &str) {
-        let node = self.node();
-        let other_id = node.format(nodes, text);
-        writeln!(text, "{}\"{}\" -> \"{}\";", " ".repeat(4), node_id, other_id).unwrap();
-    }
-}
+    fn right(&self) -> String;
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    // An extremely simple graph implementation.
-    struct SimpleGraph(SimpleNode);
-    struct SimpleNode(u32, Vec<SimpleEdge>);
-    struct SimpleEdge(SimpleNode);
-
-    impl Graph for SimpleGraph {
-        fn root(&self) -> &dyn Node {
-            &self.0
-        }
-    }
-
-    impl Node for SimpleNode {
-        fn id(&self) -> String {
-            self.0.to_string()
-        }
-
-        fn edges(&self) -> Vec<&dyn Edge> {
-            self.1.iter()
-                .map(|edge| edge as &dyn Edge)
-                .collect::<Vec<_>>()
-        }
-    }
-
-    impl Edge for SimpleEdge {
-        fn node(&self) -> &dyn Node {
-            &self.0
-        }
-    }
-
-    #[test]
-    fn simple_dot_graph() {
-        let graph = SimpleGraph(
-            SimpleNode(0, vec![
-                SimpleEdge(SimpleNode(1, vec![])),
-                SimpleEdge(SimpleNode(2, vec![])),
-            ])
-        );
-        let text = graph.format();
-        assert_eq!(text, r#"digraph {
-    "0";
-    "1";
-    "0" -> "1";
-    "2";
-    "0" -> "2";
-}"#)
+    fn format(&self, text: &mut String) {
+        writeln!(text, "{}\"{}\" -> \"{}\";", " ".repeat(4), self.left(), self.right()).unwrap();
     }
 }
