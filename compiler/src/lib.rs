@@ -1,5 +1,6 @@
 mod cst;
 pub mod dot;
+pub mod query;
 
 pub fn add(left: u64, right: u64) -> u64 {
     left + right
