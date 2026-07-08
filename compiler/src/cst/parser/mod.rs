@@ -12,7 +12,7 @@ use crate::cst::tree::{Tree, TreeKind};
 /// A parser to convert a stream of tokens into a concrete syntax tree.
 pub struct Parser<'text> {
     lexer: Lexer<'text>,
-    events: EventStream<'text>,
+    events: EventStream,
 }
 
 impl<'text> Parser<'text> {
@@ -23,7 +23,7 @@ impl<'text> Parser<'text> {
         }
     }
 
-    pub fn finish(self) -> Tree<'text> {
+    pub fn finish(self) -> Tree {
         self.events.build()
     }
 

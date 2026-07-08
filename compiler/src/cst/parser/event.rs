@@ -21,12 +21,12 @@ use crate::cst::tree::{Node, Tree, TreeKind};
 /// We don't validate events during parsing. Currently, any error is raised when the event stream
 /// is converted into a tree.
 #[derive(Debug)]
-pub struct EventStream<'text> {
-    events: Vec<Option<Event<'text>>>,
+pub struct EventStream {
+    events: Vec<Option<Event>>,
 }
 
 #[derive(Debug, PartialEq)]
-pub enum Event<'text> {
+pub enum Event {
     /// Start a new node.
     ///
     /// Previous can reference the index of an event that should occur before this event.
@@ -39,7 +39,7 @@ pub enum Event<'text> {
     Finish,
 
     /// Append a token to the current node.
-    Token { token: Token<'text> },
+    Token { token: Token },
 
     /// Register an error at this point in the stream.
     ///
@@ -47,12 +47,12 @@ pub enum Event<'text> {
     Error { message: String },
 }
 
-impl<'text> EventStream<'text> {
+impl EventStream {
     pub fn new() -> Self {
         Self { events: Vec::new() }
     }
 
-    pub fn build(self) -> Tree<'text> {
+    pub fn build(self) -> Tree {
         let mut stack = Vec::new();
         let mut iter = self.into_iter();
         for event in &mut iter {
@@ -139,7 +139,7 @@ impl<'text> EventStream<'text> {
     /// Consume a token.
     ///
     /// The token is consumed by the previously opened node.
-    pub fn consume(&mut self, token: Token<'text>) {
+    pub fn consume(&mut self, token: Token) {
         self.events.push(Some(Event::Token { token }));
     }
 
@@ -160,9 +160,9 @@ pub struct CloseMarker {
     index: usize,
 }
 
-impl<'text> IntoIterator for EventStream<'text> {
-    type Item = Event<'text>;
-    type IntoIter = IntoIter<'text>;
+impl<'text> IntoIterator for EventStream {
+    type Item = Event;
+    type IntoIter = IntoIter;
 
     fn into_iter(self) -> Self::IntoIter {
         IntoIter {
@@ -180,14 +180,14 @@ impl<'text> IntoIterator for EventStream<'text> {
 /// We need to keep track of multiple events. We need to return the event occuring before
 /// the current event, and potientially the event occuring before that event, and so on. Afterward,
 /// we need to know which event to continue iterating from.
-pub struct IntoIter<'text> {
-    events: Vec<Option<Event<'text>>>,
+pub struct IntoIter {
+    events: Vec<Option<Event>>,
     stack: Vec<usize>,
 }
 
 /// Iterate over all events in this stream.
-impl<'text> Iterator for IntoIter<'text> {
-    type Item = Event<'text>;
+impl<'text> Iterator for IntoIter {
+    type Item = Event;
 
     fn next(&mut self) -> Option<Self::Item> {
         let index = self.stack.pop();

@@ -4,13 +4,13 @@ use crate::cst::token::Token;
 ///
 /// A tree is a one-to-one representation of some object in the source code.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Tree<'text> {
+pub struct Tree {
     pub(super) kind: TreeKind,
-    pub(super) children: Vec<Node<'text>>,
+    pub(super) children: Vec<Node>,
 }
 
-impl<'text> Tree<'text> {
-    pub fn new(kind: TreeKind, children: impl Into<Vec<Node<'text>>>) -> Self {
+impl Tree {
+    pub fn new(kind: TreeKind, children: impl Into<Vec<Node>>) -> Self {
         Self {
             kind,
             children: children.into(),
@@ -22,9 +22,9 @@ impl<'text> Tree<'text> {
 ///
 /// A node is either a leaf node (a token) or a composite node (a tree).
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Node<'text> {
-    Tree(Tree<'text>),
-    Token(Token<'text>),
+pub enum Node {
+    Tree(Tree),
+    Token(Token),
     Error(String),
 }
 

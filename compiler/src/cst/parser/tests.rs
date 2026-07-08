@@ -2,7 +2,7 @@ use crate::cst::parser::Parser;
 use crate::cst::token::{Token, TokenKind};
 use crate::cst::tree::{Node, Tree, TreeKind};
 
-fn verify<'text>(text: &'text str, expected: impl Into<Vec<Node<'text>>>) {
+fn verify(text: &str, expected: impl Into<Vec<Node>>) {
     let mut parser = Parser::new(text);
     parser.file();
     let actual = parser.finish();
@@ -10,11 +10,11 @@ fn verify<'text>(text: &'text str, expected: impl Into<Vec<Node<'text>>>) {
     assert_eq!(actual, expected);
 }
 
-fn tree<'text>(kind: TreeKind, children: impl Into<Vec<Node<'text>>>) -> Node<'text> {
+fn tree<'text>(kind: TreeKind, children: impl Into<Vec<Node>>) -> Node {
     Node::Tree(Tree::new(kind, children))
 }
 
-fn token(text: &'_ str, range: std::ops::Range<usize>, kind: TokenKind) -> Node<'_> {
+fn token(text: &'_ str, range: std::ops::Range<usize>, kind: TokenKind) -> Node {
     Node::Token(Token::new(text, range, kind))
 }
 

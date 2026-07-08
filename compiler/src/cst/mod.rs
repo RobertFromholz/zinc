@@ -16,14 +16,14 @@ use token::{Token, TokenKind};
 ///
 /// Used by nodes in the CST to reference what text in the source code they represent.
 #[derive(Clone, PartialEq, Eq)]
-pub struct Span<'text> {
-    text: &'text str,
+pub struct Span {
+    text: String,
     start_offset: usize,
     length: usize,
 }
 
-impl<'text> Span<'text> {
-    pub fn new(text: &'text str, range: impl RangeBounds<usize>) -> Self {
+impl Span {
+    pub fn new(text: &str, range: impl RangeBounds<usize>) -> Self {
         let start_offset = match range.start_bound() {
             std::ops::Bound::Included(&start) => start,
             std::ops::Bound::Excluded(&start) => start + 1,
@@ -35,14 +35,14 @@ impl<'text> Span<'text> {
             std::ops::Bound::Unbounded => text.len(),
         };
         Self {
-            text,
+            text: text[start_offset..end_offset].to_owned(),
             start_offset,
             length: end_offset - start_offset,
         }
     }
 
-    pub fn text(&self) -> &'text str {
-        &self.text[self.start_offset..self.start_offset + self.length]
+    pub fn text(&self) -> &str {
+        &self.text
     }
 
     pub fn start_offset(&self) -> usize {
@@ -58,7 +58,7 @@ impl<'text> Span<'text> {
     }
 }
 
-impl fmt::Debug for Span<'_> {
+impl fmt::Debug for Span {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Span")
             .field("text", &self.text())
@@ -78,7 +78,7 @@ mod tests {
         let span = Span::new(text, 0..5);
         assert_eq!(
             Span {
-                text,
+                text: "Hello".to_owned(),
                 start_offset: 0,
                 length: 5
             },
@@ -93,7 +93,7 @@ mod tests {
         let span = Span::new(text, ..);
         assert_eq!(
             Span {
-                text,
+                text: "Hello, World!".to_owned(),
                 start_offset: 0,
                 length: 13
             },
@@ -108,7 +108,7 @@ mod tests {
         let span = Span::new(text, 7..);
         assert_eq!(
             Span {
-                text,
+                text: "World!".to_owned(),
                 start_offset: 7,
                 length: 6
             },
@@ -123,7 +123,7 @@ mod tests {
         let span = Span::new(text, ..5);
         assert_eq!(
             Span {
-                text,
+                text: "Hello".to_owned(),
                 start_offset: 0,
                 length: 5
             },
@@ -138,7 +138,7 @@ mod tests {
         let span = Span::new(text, 2..=4);
         assert_eq!(
             Span {
-                text,
+                text: "llo".to_owned(),
                 start_offset: 2,
                 length: 3
             },

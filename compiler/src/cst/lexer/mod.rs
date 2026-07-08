@@ -15,7 +15,7 @@ use std::collections::VecDeque;
 pub struct Lexer<'text> {
     text: &'text str,
     cursor: Cursor<'text>,
-    queue: VecDeque<Token<'text>>,
+    queue: VecDeque<Token>,
 }
 
 impl<'text> Lexer<'text> {
@@ -28,18 +28,18 @@ impl<'text> Lexer<'text> {
     }
 
     /// Consumes and returns the next token.
-    pub fn next(&mut self) -> Option<Token<'text>> {
+    pub fn next(&mut self) -> Option<Token> {
         self.queue.pop_front()
             .or_else(|| self.create())
     }
 
     /// Returns the next token without consuming it.
-    pub fn peek(&mut self) -> Option<Token<'text>> {
+    pub fn peek(&mut self) -> Option<Token> {
         self.peek_at_offset(0)
     }
 
     /// Returns the token at the given offset without consuming it.
-    pub fn peek_at_offset(&mut self, offset: usize) -> Option<Token<'text>> {
+    pub fn peek_at_offset(&mut self, offset: usize) -> Option<Token> {
         while self.queue.len() <= offset {
             let next = self.create()?;
             self.queue.push_back(next);
@@ -50,7 +50,7 @@ impl<'text> Lexer<'text> {
 
     /// Check if upcoming tokens can be combined into a new token of the expected kind.
     /// If so, consumes upcoming tokens and returns a new token.
-    pub fn next_kind(&mut self, kind: TokenKind) -> Option<Token<'text>> {
+    pub fn next_kind(&mut self, kind: TokenKind) -> Option<Token> {
         let token = self.peek_kind(kind)?;
         for _ in kind.decompose() {
             self.next();
@@ -60,14 +60,14 @@ impl<'text> Lexer<'text> {
 
     /// Check if upcoming tokens can be combined into a new token of the expected kind.
     /// If so, returns a new token.
-    pub fn peek_kind(&mut self, kind: TokenKind) -> Option<Token<'text>> {
+    pub fn peek_kind(&mut self, kind: TokenKind) -> Option<Token> {
         self.peek_kind_at_offset(kind, 0)
     }
 
     /// Check if upcoming tokens starting at the given offset from the current position can
     /// be combined into a new token of the expected kind.
     /// If so, returns a new token.
-    pub fn peek_kind_at_offset(&mut self, kind: TokenKind, offset: usize) -> Option<Token<'text>> {
+    pub fn peek_kind_at_offset(&mut self, kind: TokenKind, offset: usize) -> Option<Token> {
         kind.decompose().into_iter()
             .enumerate()
             .map(|(i, _)| self.peek_at_offset(i + offset))
@@ -75,7 +75,7 @@ impl<'text> Lexer<'text> {
             .and_then(|parts| kind.combine(self.text, &parts))
     }
 
-    fn create(&mut self) -> Option<Token<'text>> {
+    fn create(&mut self) -> Option<Token> {
         let next = self.cursor.consume()?;
         let kind = match next {
             next if is_whitespace(next) => self.whitespace(),
@@ -96,11 +96,7 @@ impl<'text> Lexer<'text> {
         let lexeme = self.cursor.close();
         Some(Token {
             kind,
-            span: Span {
-                text: self.text,
-                start_offset: lexeme.start_offset(),
-                length: lexeme.length(),
-            },
+            span: Span::new(self.text, lexeme.start_offset()..lexeme.end_offset())
         })
     }
 
@@ -124,7 +120,7 @@ impl<'text> Lexer<'text> {
 }
 
 impl<'text> Iterator for Lexer<'text> {
-    type Item = Token<'text>;
+    type Item = Token;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.next()

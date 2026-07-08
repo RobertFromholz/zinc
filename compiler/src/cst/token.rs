@@ -5,12 +5,12 @@ use std::ops::RangeBounds;
 
 /// A token is a character or sequence in the source code of some associated type.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Token<'text> {
+pub struct Token {
     pub(super) kind: TokenKind,
-    pub(super) span: Span<'text>,
+    pub(super) span: Span,
 }
 
-impl<'text> Token<'text> {
+impl<'text> Token {
     pub fn new(text: &'text str, range: impl RangeBounds<usize>, kind: TokenKind) -> Self {
         Self {
             kind,
@@ -84,7 +84,7 @@ pub enum TokenKind {
 
 impl TokenKind {
     /// Try to combine a list of consecutive tokens into a new token of this type.
-    pub fn combine<'text>(self, text: &'text str, parts: &[Token<'text>]) -> Option<Token<'text>> {
+    pub fn combine(self, text: &str, parts: &[Token]) -> Option<Token> {
         let expected = self.decompose().into_iter();
         let actual = parts.iter()
             .map(|token| token.kind);
@@ -95,11 +95,7 @@ impl TokenKind {
             let lexeme = Lexeme::combine(lexemes)?;
             Some(Token {
                 kind: self,
-                span: Span {
-                    text,
-                    start_offset: lexeme.start_offset(),
-                    length: lexeme.length(),
-                },
+                span: Span::new(text, lexeme.start_offset()..lexeme.end_offset())
             })
         } else {
             None
