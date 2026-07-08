@@ -90,8 +90,9 @@ impl<'text> Parser<'text> {
     fn consume_any(&mut self) -> Option<TokenKind> {
         self.consume_whitespace();
         let next = self.lexer.next()?;
+        let kind = next.kind;
         self.events.consume(next);
-        Some(next.kind)
+        Some(kind)
     }
 
     /// Consume all whitespace tokens.

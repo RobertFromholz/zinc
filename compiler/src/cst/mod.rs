@@ -15,7 +15,7 @@ use token::{Token, TokenKind};
 /// A substring in the source code.
 ///
 /// Used by nodes in the CST to reference what text in the source code they represent.
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct Span<'text> {
     text: &'text str,
     start_offset: usize,
@@ -41,19 +41,19 @@ impl<'text> Span<'text> {
         }
     }
 
-    pub fn text(self) -> &'text str {
+    pub fn text(&self) -> &'text str {
         &self.text[self.start_offset..self.start_offset + self.length]
     }
 
-    pub fn start_offset(self) -> usize {
+    pub fn start_offset(&self) -> usize {
         self.start_offset
     }
 
-    pub fn end_offset(self) -> usize {
+    pub fn end_offset(&self) -> usize {
         self.start_offset + self.length
     }
 
-    pub fn length(self) -> usize {
+    pub fn length(&self) -> usize {
         self.length
     }
 }

@@ -4,7 +4,7 @@ use std::fmt;
 use std::ops::RangeBounds;
 
 /// A token is a character or sequence in the source code of some associated type.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Token<'text> {
     pub(super) kind: TokenKind,
     pub(super) span: Span<'text>,

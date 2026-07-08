@@ -84,7 +84,7 @@ impl<'text> EventStream<'text> {
                             parent.children.push(Node::Token(token));
                         }
                         None => {
-                            panic!("unexpected '{:?}' outside top-level node", event);
+                            panic!("unexpected '{:?}' outside top-level node", Event::Token { token });
                         }
                     }
                 }

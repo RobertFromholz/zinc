@@ -44,7 +44,8 @@ impl<'text> Lexer<'text> {
             let next = self.create()?;
             self.queue.push_back(next);
         }
-        Some(self.queue[offset])
+        let token = self.queue[offset].clone();
+        Some(token)
     }
 
     /// Check if upcoming tokens can be combined into a new token of the expected kind.
