@@ -227,6 +227,7 @@ impl dot::Edge for (QueryId, QueryId) {
 
 #[cfg(test)]
 mod tests {
+    use crate::dot::Graph;
     use super::*;
 
     struct LiteralQuery;
@@ -246,10 +247,29 @@ mod tests {
         type Key = (usize, usize);
         type Output = usize;
 
-        fn execute(handle: Handle<'_>, key: &Self::Key) -> Self::Output {
+        fn execute(handle: Handle, key: &(usize, usize)) -> usize {
             let left = handle.execute::<LiteralQuery>(key.0);
             let right = handle.execute::<LiteralQuery>(key.1);
             left + right
+        }
+    }
+
+    struct FibonacciQuery;
+
+    impl Query for FibonacciQuery {
+        type Key = usize;
+        type Output = usize;
+
+        fn execute(handle: Handle, key: &usize) -> usize {
+            match key {
+                0 => 0,
+                1 => 1,
+                key => {
+                    let left = handle.execute::<FibonacciQuery>(key - 1);
+                    let right = handle.execute::<FibonacciQuery>(key - 2);
+                    left + right
+                }
+            }
         }
     }
 
@@ -284,4 +304,23 @@ mod tests {
         }
         // context.draw_and_open_graph().unwrap();
     }
+
+    #[test]
+    fn simple_query_with_caching() {
+        let context = Context::new();
+        let value = context.execute::<AddQuery>((2, 3));
+        assert_eq!(value, 5);
+        let value = context.execute::<AddQuery>((3, 4));
+        assert_eq!(value, 7);
+        assert_eq!(context.queries.borrow().len(), 5);
+    }
+
+    #[test]
+    fn query_with_caching() {
+        let context = Context::new();
+        let value = context.execute::<FibonacciQuery>(5);
+        assert_eq!(value, 5);
+        assert_eq!(context.queries.borrow().len(), 6);
+    }
+
 }
