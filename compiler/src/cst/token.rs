@@ -1,6 +1,7 @@
+use crate::cst::lexer::Lexeme;
+use crate::cst::Span;
 use std::fmt;
 use std::ops::RangeBounds;
-use crate::cst::Span;
 
 /// A token is a character or sequence in the source code of some associated type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -83,17 +84,22 @@ pub enum TokenKind {
 
 impl TokenKind {
     /// Try to combine a list of consecutive tokens into a new token of this type.
-    pub fn combine<'text>(self, parts: &[Token<'text>]) -> Option<Token<'text>> {
+    pub fn combine<'text>(self, text: &'text str, parts: &[Token<'text>]) -> Option<Token<'text>> {
         let expected = self.decompose().into_iter();
         let actual = parts.iter()
             .map(|token| token.kind);
         if expected.eq(actual) {
-            let spans = parts.iter()
-                .map(|token| token.span);
-            let span = Span::combine(spans)?;
+            // FIXME: This is quite jank.
+            let lexemes = parts.iter()
+                .map(|token| Lexeme::new(token.span.start_offset(), token.span.length()));
+            let lexeme = Lexeme::combine(lexemes)?;
             Some(Token {
                 kind: self,
-                span,
+                span: Span {
+                    text,
+                    start_offset: lexeme.start_offset(),
+                    length: lexeme.length(),
+                },
             })
         } else {
             None
@@ -160,7 +166,7 @@ mod tests {
             Token::new(text, 0..1, TokenKind::Minus),
             Token::new(text, 1..2, TokenKind::GreaterThan),
         ];
-        let result = TokenKind::RightArrow.combine(&parts);
+        let result = TokenKind::RightArrow.combine(text, &parts);
         assert_eq!(result, Some(Token::new(text, 0..2, TokenKind::RightArrow)));
     }
 
@@ -171,7 +177,7 @@ mod tests {
             Token::new(text, 0..1, TokenKind::Colon),
             Token::new(text, 1..2, TokenKind::Colon),
         ];
-        let result = TokenKind::PathSeparator.combine(&parts);
+        let result = TokenKind::PathSeparator.combine(text, &parts);
         assert_eq!(result, Some(Token::new(text, 0..2, TokenKind::PathSeparator)));
     }
 
@@ -182,7 +188,7 @@ mod tests {
             Token::new(text, 0..1, TokenKind::Minus),
             Token::new(text, 1..2, TokenKind::Semicolon),
         ];
-        let result = TokenKind::RightArrow.combine(&parts);
+        let result = TokenKind::RightArrow.combine(text, &parts);
         assert_eq!(result, None);
     }
 
@@ -193,7 +199,7 @@ mod tests {
             Token::new(text, 0..1, TokenKind::Minus),
             Token::new(text, 2..3, TokenKind::GreaterThan),
         ];
-        let result = TokenKind::RightArrow.combine(&parts);
+        let result = TokenKind::RightArrow.combine(text, &parts);
         assert_eq!(result, None);
     }
 
@@ -203,7 +209,7 @@ mod tests {
         let parts = vec![
             Token::new(text, 0..1, TokenKind::Comma),
         ];
-        let result = TokenKind::Comma.combine(&parts);
+        let result = TokenKind::Comma.combine(text, &parts);
         assert_eq!(result, Some(Token::new(text, 0..1, TokenKind::Comma)));
     }
 
@@ -213,7 +219,7 @@ mod tests {
         let parts = vec![
             Token::new(text, 0..1, TokenKind::Minus),
         ];
-        let result = TokenKind::RightArrow.combine(&parts);
+        let result = TokenKind::RightArrow.combine(text, &parts);
         assert_eq!(result, None);
     }
 }

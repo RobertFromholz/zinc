@@ -2,15 +2,18 @@
 
 mod cursor;
 
-use std::collections::VecDeque;
-use super::{Token, TokenKind};
+pub use cursor::Lexeme;
+
+use super::{Span, Token, TokenKind};
 use cursor::Cursor;
+use std::collections::VecDeque;
 
 /// A lexer to convert source code into a stream of tokens.
 ///
 /// The lexer will not return combined tokens. A combined token (e.g. '->') is built up of other
 /// tokens ('-' and '>'). The lexer is not aware whether a combined token is expected.
 pub struct Lexer<'text> {
+    text: &'text str,
     cursor: Cursor<'text>,
     queue: VecDeque<Token<'text>>,
 }
@@ -18,6 +21,7 @@ pub struct Lexer<'text> {
 impl<'text> Lexer<'text> {
     pub fn new(text: &'text str) -> Self {
         Self {
+            text,
             cursor: Cursor::new(text),
             queue: VecDeque::new(),
         }
@@ -67,7 +71,7 @@ impl<'text> Lexer<'text> {
             .enumerate()
             .map(|(i, _)| self.peek_at_offset(i + offset))
             .collect::<Option<Vec<_>>>()
-            .and_then(|parts| kind.combine(&parts))
+            .and_then(|parts| kind.combine(self.text, &parts))
     }
 
     fn create(&mut self) -> Option<Token<'text>> {
@@ -88,10 +92,14 @@ impl<'text> Lexer<'text> {
             ')' => TokenKind::RightParentheses,
             _ => TokenKind::Unknown
         };
-        let span = self.cursor.close();
+        let lexeme = self.cursor.close();
         Some(Token {
             kind,
-            span,
+            span: Span {
+                text: self.text,
+                start_offset: lexeme.start_offset(),
+                length: lexeme.length(),
+            },
         })
     }
 
@@ -102,8 +110,9 @@ impl<'text> Lexer<'text> {
 
     fn identifier(&mut self) -> TokenKind {
         self.cursor.consume_while(is_identifier_continue);
-        let span = self.cursor.current();
-        TokenKind::try_from(span.text())
+        let lexeme = self.cursor.current();
+        let text = &self.text[lexeme.start_offset()..lexeme.end_offset()];
+        TokenKind::try_from(text)
             .unwrap_or(TokenKind::Identifier)
     }
 

@@ -41,25 +41,6 @@ impl<'text> Span<'text> {
         }
     }
 
-    /// Combine a list of consecutive spans into a new span.
-    ///
-    /// Returns `None` if the iterator is empty or if the iterator is non-consecutive.
-    pub fn combine(spans: impl IntoIterator<Item=Span<'text>>) -> Option<Span<'text>> {
-        let mut iter = spans.into_iter();
-        let first = iter.next()?;
-        iter.try_fold(first, |previous, next| {
-            if previous.end_offset() == next.start_offset() && previous.text == next.text {
-                Some(Span {
-                    text: previous.text,
-                    start_offset: previous.start_offset,
-                    length: previous.length + next.length,
-                })
-            } else {
-                None
-            }
-        })
-    }
-
     pub fn text(self) -> &'text str {
         &self.text[self.start_offset..self.start_offset + self.length]
     }
@@ -164,43 +145,5 @@ mod tests {
             span
         );
         assert_eq!(span.text(), "llo");
-    }
-
-    #[test]
-    fn test_combine_one_span() {
-        let text = "abc";
-        assert_eq!(
-            Some(Span::new(text, 0..3)),
-            Span::combine(vec![
-                Span::new(text, 0..3)
-            ])
-        )
-    }
-
-    #[test]
-    fn test_combine_consecutive_spans() {
-        assert_eq!(
-            Some(Span::new("abc123", 0..6)),
-            Span::combine(vec![
-                Span::new("abc123", 0..3),
-                Span::new("abc123", 3..6)
-            ])
-        )
-    }
-
-    #[test]
-    fn test_combine_non_consecutive_spans() {
-        assert_eq!(
-            None,
-            Span::combine(vec![
-                Span::new("abc 123", 0..3),
-                Span::new("abc 123", 4..7)
-            ])
-        )
-    }
-
-    #[test]
-    fn test_combine_empty_spans() {
-        assert_eq!(None, Span::combine(vec![]));
     }
 }
