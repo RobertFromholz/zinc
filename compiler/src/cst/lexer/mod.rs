@@ -2,8 +2,6 @@
 
 mod cursor;
 
-pub use cursor::Lexeme;
-
 use super::{Span, Token, TokenKind};
 use cursor::Cursor;
 use std::collections::VecDeque;
@@ -72,7 +70,7 @@ impl<'text> Lexer<'text> {
             .enumerate()
             .map(|(i, _)| self.peek_at_offset(i + offset))
             .collect::<Option<Vec<_>>>()
-            .and_then(|parts| kind.combine(self.text, &parts))
+            .and_then(|parts| kind.combine(&parts))
     }
 
     fn create(&mut self) -> Option<Token> {

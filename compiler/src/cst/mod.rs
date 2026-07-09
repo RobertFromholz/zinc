@@ -8,10 +8,10 @@ mod parser;
 mod token;
 mod tree;
 
+use std::borrow::Borrow;
 use std::fmt;
 use std::ops::RangeBounds;
 use token::{Token, TokenKind};
-use crate::cst::lexer::Lexeme;
 
 /// A substring in the source code.
 ///
@@ -19,7 +19,7 @@ use crate::cst::lexer::Lexeme;
 #[derive(Clone, PartialEq, Eq)]
 pub struct Span {
     text: String,
-    lexeme: Lexeme
+    start_offset: usize,
 }
 
 impl Span {
@@ -36,7 +36,7 @@ impl Span {
         };
         Self {
             text: text[start_offset..end_offset].to_owned(),
-            lexeme: Lexeme::new(start_offset, end_offset - start_offset),
+            start_offset,
         }
     }
 
@@ -44,20 +44,35 @@ impl Span {
         &self.text
     }
 
-    pub fn lexeme(&self) -> Lexeme {
-        self.lexeme
-    }
-
     pub fn start_offset(&self) -> usize {
-        self.lexeme.start_offset()
+        self.start_offset
     }
 
     pub fn end_offset(&self) -> usize {
-        self.lexeme.end_offset()
+        self.start_offset() + self.length()
     }
 
     pub fn length(&self) -> usize {
-        self.lexeme.length()
+        self.text().len()
+    }
+
+    /// Combine a list of consecutive spans into a new span.
+    ///
+    /// Returns `None` if the iterator is empty or if the iterator is non-consecutive.
+    pub fn combine(spans: impl IntoIterator<Item=impl Borrow<Span>>) -> Option<Span> {
+        let mut iter = spans.into_iter();
+        // We need to clone the first span.
+        // This becomes our return value, all other spans are 'moved' into this span.
+        let first = iter.next()?.borrow().clone();
+        iter.try_fold(first, |mut span, next| {
+            let next = next.borrow();
+            if span.end_offset() == next.start_offset() {
+                span.text += &next.text;
+                Some(span)
+            } else {
+                None
+            }
+        })
     }
 }
 
@@ -82,7 +97,7 @@ mod tests {
         assert_eq!(
             Span {
                 text: "Hello".to_owned(),
-                lexeme: Lexeme::new(0, 5),
+                start_offset: 0,
             },
             span
         );
@@ -96,7 +111,7 @@ mod tests {
         assert_eq!(
             Span {
                 text: "Hello, World!".to_owned(),
-                lexeme: Lexeme::new(0, 13),
+                start_offset: 0,
             },
             span
         );
@@ -110,7 +125,7 @@ mod tests {
         assert_eq!(
             Span {
                 text: "World!".to_owned(),
-                lexeme: Lexeme::new(7, 6),
+                start_offset: 7,
             },
             span
         );
@@ -124,7 +139,7 @@ mod tests {
         assert_eq!(
             Span {
                 text: "Hello".to_owned(),
-                lexeme: Lexeme::new(0, 5),
+                start_offset: 0,
             },
             span
         );
@@ -138,10 +153,48 @@ mod tests {
         assert_eq!(
             Span {
                 text: "llo".to_owned(),
-                lexeme: Lexeme::new(2, 3),
+                start_offset: 2,
             },
             span
         );
         assert_eq!(span.text(), "llo");
+    }
+
+    #[test]
+    fn test_combine_one_span() {
+        let text = "abc";
+        assert_eq!(
+            Some(Span::new(text, 0..3)),
+            Span::combine(vec![
+                Span::new(text, 0..3)
+            ])
+        )
+    }
+
+    #[test]
+    fn test_combine_consecutive_spans() {
+        assert_eq!(
+            Some(Span::new("abc123", 0..6)),
+            Span::combine(vec![
+                Span::new("abc123", 0..3),
+                Span::new("abc123", 3..6)
+            ])
+        )
+    }
+
+    #[test]
+    fn test_combine_non_consecutive_spans() {
+        assert_eq!(
+            None,
+            Span::combine(vec![
+                Span::new("abc 123", 0..3),
+                Span::new("abc 123", 4..7)
+            ])
+        )
+    }
+
+    #[test]
+    fn test_combine_empty_spans() {
+        assert_eq!(None, Span::combine(Vec::<Span>::new()));
     }
 }
