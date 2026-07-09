@@ -11,6 +11,7 @@ mod tree;
 use std::fmt;
 use std::ops::RangeBounds;
 use token::{Token, TokenKind};
+use crate::cst::lexer::Lexeme;
 
 /// A substring in the source code.
 ///
@@ -18,8 +19,7 @@ use token::{Token, TokenKind};
 #[derive(Clone, PartialEq, Eq)]
 pub struct Span {
     text: String,
-    start_offset: usize,
-    length: usize,
+    lexeme: Lexeme
 }
 
 impl Span {
@@ -36,8 +36,7 @@ impl Span {
         };
         Self {
             text: text[start_offset..end_offset].to_owned(),
-            start_offset,
-            length: end_offset - start_offset,
+            lexeme: Lexeme::new(start_offset, end_offset - start_offset),
         }
     }
 
@@ -45,16 +44,20 @@ impl Span {
         &self.text
     }
 
+    pub fn lexeme(&self) -> Lexeme {
+        self.lexeme
+    }
+
     pub fn start_offset(&self) -> usize {
-        self.start_offset
+        self.lexeme.start_offset()
     }
 
     pub fn end_offset(&self) -> usize {
-        self.start_offset + self.length
+        self.lexeme.end_offset()
     }
 
     pub fn length(&self) -> usize {
-        self.length
+        self.lexeme.length()
     }
 }
 
@@ -79,8 +82,7 @@ mod tests {
         assert_eq!(
             Span {
                 text: "Hello".to_owned(),
-                start_offset: 0,
-                length: 5
+                lexeme: Lexeme::new(0, 5),
             },
             span
         );
@@ -94,8 +96,7 @@ mod tests {
         assert_eq!(
             Span {
                 text: "Hello, World!".to_owned(),
-                start_offset: 0,
-                length: 13
+                lexeme: Lexeme::new(0, 13),
             },
             span
         );
@@ -109,8 +110,7 @@ mod tests {
         assert_eq!(
             Span {
                 text: "World!".to_owned(),
-                start_offset: 7,
-                length: 6
+                lexeme: Lexeme::new(7, 6),
             },
             span
         );
@@ -124,8 +124,7 @@ mod tests {
         assert_eq!(
             Span {
                 text: "Hello".to_owned(),
-                start_offset: 0,
-                length: 5
+                lexeme: Lexeme::new(0, 5),
             },
             span
         );
@@ -139,8 +138,7 @@ mod tests {
         assert_eq!(
             Span {
                 text: "llo".to_owned(),
-                start_offset: 2,
-                length: 3
+                lexeme: Lexeme::new(2, 3),
             },
             span
         );

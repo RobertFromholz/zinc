@@ -31,7 +31,6 @@ pub struct Lexeme {
 
 impl Lexeme {
     /// Create a new `Lexeme`.
-    // FIXME: This should probably be private.
     pub fn new(start_offset: usize, length: usize) -> Self {
         Self {
             start_offset,

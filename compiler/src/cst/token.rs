@@ -89,9 +89,8 @@ impl TokenKind {
         let actual = parts.iter()
             .map(|token| token.kind);
         if expected.eq(actual) {
-            // FIXME: This is quite jank.
             let lexemes = parts.iter()
-                .map(|token| Lexeme::new(token.span.start_offset(), token.span.length()));
+                .map(|token| token.span.lexeme());
             let lexeme = Lexeme::combine(lexemes)?;
             Some(Token {
                 kind: self,
