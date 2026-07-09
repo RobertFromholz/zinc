@@ -1,5 +1,6 @@
 mod event;
 mod grammar;
+pub mod query;
 
 #[cfg(test)]
 mod tests;
@@ -8,7 +9,6 @@ use crate::cst::lexer::Lexer;
 use crate::cst::parser::event::{CloseMarker, EventStream, OpenMarker};
 use crate::cst::token::TokenKind;
 use crate::cst::tree::{Tree, TreeKind};
-use crate::query::{Handle, Query};
 
 /// A parser to convert a stream of tokens into a concrete syntax tree.
 pub struct Parser<'text> {
