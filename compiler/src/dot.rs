@@ -103,7 +103,8 @@ pub trait Node {
 
     /// Formats this node into the `DOT` format. Returns this node's id.
     fn format(&self, text: &mut String) {
-        writeln!(text, "{}\"{}\";", " ".repeat(4), self.id()).unwrap();
+        let id = escape_string(self.id());
+        writeln!(text, "{}\"{}\";", " ".repeat(4), id).unwrap();
     }
 }
 
@@ -117,6 +118,12 @@ pub trait Edge {
     fn right(&self) -> String;
 
     fn format(&self, text: &mut String) {
-        writeln!(text, "{}\"{}\" -> \"{}\";", " ".repeat(4), self.left(), self.right()).unwrap();
+        let left = escape_string(self.left());
+        let right = escape_string(self.right());
+        writeln!(text, "{}\"{}\" -> \"{}\";", " ".repeat(4), left, right).unwrap();
     }
+}
+
+fn escape_string(text: String) -> String {
+    text.replace('"', "\\\"")
 }

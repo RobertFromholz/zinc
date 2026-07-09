@@ -2,11 +2,11 @@
 //!
 //! The parser registers symbols in the source code to a symbol table.
 
-mod lexer;
-mod parser;
+pub mod lexer;
+pub mod parser;
 
-mod token;
-mod tree;
+pub mod token;
+pub mod tree;
 
 use std::borrow::Borrow;
 use std::fmt;
@@ -81,7 +81,6 @@ impl fmt::Debug for Span {
         f.debug_struct("Span")
             .field("text", &self.text())
             .field("start_offset", &self.start_offset())
-            .field("length", &self.length())
             .finish()
     }
 }

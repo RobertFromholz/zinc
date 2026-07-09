@@ -186,7 +186,7 @@ impl<T: Any + PartialEq + Eq + Hash + Debug + 'static> QueryKey for T {
 pub trait Query: 'static {
     /// The key used by this query.
     ///
-    /// The key *must* implement `PartialEq`, `Hash` and `Debug`.
+    /// The key *must* implement `PartialEq`, `Eq`, `Hash` and `Debug`.
     type Key: QueryKey;
     /// The result of this query.
     type Output: Clone;
@@ -203,7 +203,7 @@ pub trait Query: 'static {
 ///
 /// A `QueryId` is guaranteed to exist in `Context::queries`.
 #[derive(Clone)]
-struct QueryId {
+pub struct QueryId {
     type_id: TypeId,
     // We use the name of the type to help with debugging.
     // In the future, it could also be used when serializing and deserializing a query to disk.

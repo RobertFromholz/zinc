@@ -43,7 +43,7 @@ impl<'text> Parser<'text> {
         self.expect(TokenKind::Struct);
         self.expect(TokenKind::Identifier);
         self.expect(TokenKind::LeftBrace);
-        self.items(Some(TokenKind::RightBrace));
+        self.items(Some(TokenKind::RightBrace)); // FIXME: This is the incorrect syntax.
         self.expect(TokenKind::RightBrace);
         self.close(marker, TreeKind::Struct);
     }
