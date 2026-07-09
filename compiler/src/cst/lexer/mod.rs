@@ -2,7 +2,7 @@
 
 mod cursor;
 
-use super::{Span, Token, TokenKind};
+use super::{Token, TokenKind};
 use cursor::Cursor;
 use std::collections::VecDeque;
 
@@ -11,7 +11,6 @@ use std::collections::VecDeque;
 /// The lexer will not return combined tokens. A combined token (e.g. '->') is built up of other
 /// tokens ('-' and '>'). The lexer is not aware whether a combined token is expected.
 pub struct Lexer<'text> {
-    text: &'text str,
     cursor: Cursor<'text>,
     queue: VecDeque<Token>,
 }
@@ -19,7 +18,6 @@ pub struct Lexer<'text> {
 impl<'text> Lexer<'text> {
     pub fn new(text: &'text str) -> Self {
         Self {
-            text,
             cursor: Cursor::new(text),
             queue: VecDeque::new(),
         }
@@ -91,10 +89,10 @@ impl<'text> Lexer<'text> {
             ')' => TokenKind::RightParentheses,
             _ => TokenKind::Unknown
         };
-        let lexeme = self.cursor.close();
+        let span = self.cursor.close();
         Some(Token {
             kind,
-            span: Span::new(self.text, lexeme.start_offset()..lexeme.end_offset())
+            span
         })
     }
 
@@ -105,8 +103,8 @@ impl<'text> Lexer<'text> {
 
     fn identifier(&mut self) -> TokenKind {
         self.cursor.consume_while(is_identifier_continue);
-        let lexeme = self.cursor.current();
-        let text = &self.text[lexeme.start_offset()..lexeme.end_offset()];
+        let span = self.cursor.current();
+        let text = span.text();
         TokenKind::try_from(text)
             .unwrap_or(TokenKind::Identifier)
     }
