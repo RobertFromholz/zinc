@@ -105,11 +105,11 @@ impl fmt::Display for TreeKind {
 }
 
 impl dot::Graph for Node {
-    type Node<'a> = (usize, &'a Node);
-    type Edge<'a> = (&'a (usize, &'a Node), (usize, &'a Node));
+    type Node<'a> = (String, &'a Node);
+    type Edge<'a> = (&'a (String, &'a Node), (usize, &'a Node));
 
     fn nodes(&self) -> Vec<Self::Node<'_>> {
-        vec![(0, self)]
+        vec![("0".to_owned(), self)]
     }
 
     fn edges(&self) -> Vec<Self::Edge<'_>> {
@@ -117,8 +117,8 @@ impl dot::Graph for Node {
     }
 }
 
-impl<'a> dot::Node for (usize, &'a Node) {
-    type Edge<'b> = (&'b (usize, &'b Node), (usize, &'b Node))
+impl<'a> dot::Node for (String, &'a Node) {
+    type Edge<'b> = (&'b (String, &'b Node), (usize, &'b Node))
     where
         Self: 'b;
 
@@ -134,15 +134,15 @@ impl<'a> dot::Node for (usize, &'a Node) {
         match self.1 {
             Node::Tree(tree) => tree.children.iter()
                 .enumerate()
-                .map(|(i, child)| (self, (self.0 + 1 + i, child)))
+                .map(|(i, child)| (self, (i, child)))
                 .collect(),
             _ => vec![]
         }
     }
 }
 
-impl<'a> dot::Edge for (&'a (usize, &'a Node), (usize, &'a Node)) {
-    type Node<'b> = (usize, &'b Node)
+impl<'a> dot::Edge for (&'a (String, &'a Node), (usize, &'a Node)) {
+    type Node<'b> = (String, &'b Node)
     where
         Self: 'b;
 
@@ -151,10 +151,10 @@ impl<'a> dot::Edge for (&'a (usize, &'a Node), (usize, &'a Node)) {
     }
 
     fn right_id(&self) -> String {
-        format!("{}", self.1.0)
+        format!("{}-{}", self.0.0, self.1.0)
     }
 
     fn right(&self) -> Option<Self::Node<'_>> {
-        Some(self.1)
+        Some((format!("{}-{}", self.0.0, self.1.0), self.1.1))
     }
 }
