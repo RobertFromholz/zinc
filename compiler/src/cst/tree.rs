@@ -1,4 +1,7 @@
 use crate::cst::token::Token;
+use crate::dot;
+use std::fmt;
+use std::fmt::Formatter;
 
 /// A concrete syntax tree (CST).
 ///
@@ -6,14 +9,26 @@ use crate::cst::token::Token;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Tree {
     pub(super) kind: TreeKind,
+    pub(super) start_offset: usize,
     pub(super) children: Vec<Node>,
 }
 
 impl Tree {
-    pub fn new(kind: TreeKind, children: impl Into<Vec<Node>>) -> Self {
+    pub fn new(kind: TreeKind, start_offset: usize, children: impl Into<Vec<Node>>) -> Self {
         Self {
             kind,
+            start_offset,
             children: children.into(),
+        }
+    }
+}
+
+impl fmt::Display for Tree {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            write!(f, "{}: {}", self.start_offset, self.kind)
+        } else {
+            write!(f, "{}", self.kind)
         }
     }
 }
@@ -26,6 +41,16 @@ pub enum Node {
     Tree(Tree),
     Token(Token),
     Error(String),
+}
+
+impl fmt::Display for Node {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            Node::Tree(tree) => write!(f, "{}", tree),
+            Node::Token(token) => write!(f, "{}", token),
+            Node::Error(error) => write!(f, "{}", error),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -50,4 +75,86 @@ pub enum TreeKind {
     BlockExpression,
     Statement,
     Unknown,
+}
+
+impl fmt::Display for TreeKind {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", match self {
+            TreeKind::File => "File",
+            TreeKind::Module => "Module",
+            TreeKind::Items => "Items",
+            TreeKind::Struct => "Struct",
+            TreeKind::Function => "Function",
+            TreeKind::Field => "Field",
+            TreeKind::Initializer => "Initializer",
+            TreeKind::Parameters => "Parameters",
+            TreeKind::Parameter => "Parameter",
+            TreeKind::Type => "Type",
+            TreeKind::Expression => "Expression",
+            TreeKind::LiteralExpression => "Literal Expression",
+            TreeKind::PrefixExpression => "prefix Expression",
+            TreeKind::PathExpression => "Path Expression",
+            TreeKind::CallExpression => "Call Expression",
+            TreeKind::Arguments => "Arguments",
+            TreeKind::ParenthesizedExpression => "Parenthesized Expression",
+            TreeKind::BlockExpression => "Block Expression",
+            TreeKind::Statement => "Statement",
+            TreeKind::Unknown => "Unknown",
+        })
+    }
+}
+
+impl dot::Graph for Node {
+    type Node<'a> = (usize, &'a Node);
+    type Edge<'a> = (&'a (usize, &'a Node), (usize, &'a Node));
+
+    fn nodes(&self) -> Vec<Self::Node<'_>> {
+        vec![(0, self)]
+    }
+
+    fn edges(&self) -> Vec<Self::Edge<'_>> {
+        vec![]
+    }
+}
+
+impl<'a> dot::Node for (usize, &'a Node) {
+    type Edge<'b> = (&'b (usize, &'b Node), (usize, &'b Node))
+    where
+        Self: 'b;
+
+    fn id(&self) -> String {
+        format!("{}", self.0)
+    }
+
+    fn label(&self) -> Option<String> {
+        Some(format!("{}", self.1))
+    }
+
+    fn edges(&self) -> Vec<Self::Edge<'_>> {
+        match self.1 {
+            Node::Tree(tree) => tree.children.iter()
+                .enumerate()
+                .map(|(i, child)| (self, (self.0 + 1 + i, child)))
+                .collect(),
+            _ => vec![]
+        }
+    }
+}
+
+impl<'a> dot::Edge for (&'a (usize, &'a Node), (usize, &'a Node)) {
+    type Node<'b> = (usize, &'b Node)
+    where
+        Self: 'b;
+
+    fn left_id(&self) -> String {
+        format!("{}", self.0.0)
+    }
+
+    fn right_id(&self) -> String {
+        format!("{}", self.1.0)
+    }
+
+    fn right(&self) -> Option<Self::Node<'_>> {
+        Some(self.1)
+    }
 }

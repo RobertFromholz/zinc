@@ -27,8 +27,8 @@
 use crate::dot;
 use std::any::{Any, TypeId};
 use std::cell::RefCell;
-use std::collections::{HashMap, HashSet};
 use std::collections::hash_map::Entry;
+use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::fmt::Debug;
 use std::hash::{Hash, Hasher};
@@ -244,7 +244,10 @@ impl fmt::Debug for QueryId {
     }
 }
 
-impl dot::Graph<QueryId, (QueryId, QueryId)> for Context {
+impl dot::Graph for Context {
+    type Node<'a> = QueryId;
+    type Edge<'a> = (QueryId, QueryId);
+
     fn nodes(&self) -> Vec<QueryId> {
         self.queries.borrow()
             .keys()
@@ -262,17 +265,25 @@ impl dot::Graph<QueryId, (QueryId, QueryId)> for Context {
 }
 
 impl dot::Node for QueryId {
+    type Edge<'a> = (QueryId, QueryId);
+
     fn id(&self) -> String {
         format!("{:?}", self)
+    }
+
+    fn label(&self) -> Option<String> {
+        Some(format!("{}: {:?}", self.name, self.key))
     }
 }
 
 impl dot::Edge for (QueryId, QueryId) {
-    fn left(&self) -> String {
+    type Node<'a> = QueryId;
+
+    fn left_id(&self) -> String {
         format!("{:?}", self.0)
     }
 
-    fn right(&self) -> String {
+    fn right_id(&self) -> String {
         format!("{:?}", self.1)
     }
 }

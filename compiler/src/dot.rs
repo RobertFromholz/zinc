@@ -1,5 +1,6 @@
 //! Utility to generate and render a GraphViz graph.
 
+use std::collections::HashSet;
 use std::env::temp_dir;
 use std::fmt::Write as _;
 use std::fs::File;
@@ -12,12 +13,16 @@ use std::process::{Command, Stdio};
 ///
 /// For simplicity, the graph is always a directed graph. That is, edges always point from the
 /// current node to the target node.
-pub trait Graph<N: Node, E: Edge> {
-    /// All nodes in this graph.
-    fn nodes(&self) -> Vec<N>;
+pub trait Graph {
 
-    /// All edges in this graph.
-    fn edges(&self) -> Vec<E>;
+    type Node<'a>: Node where Self: 'a;
+    type Edge<'a>: Edge where Self: 'a;
+
+    /// Nodes in this graph.
+    fn nodes(&self) -> Vec<Self::Node<'_>>;
+
+    /// Edges in this graph.
+    fn edges(&self) -> Vec<Self::Edge<'_>>;
 
     /// Draws this graph into an SVG file.
     ///
@@ -44,6 +49,7 @@ pub trait Graph<N: Node, E: Edge> {
             write!(stdin, "{}", text)?;
         } // stdin is dropped (and as a result closed). This causes 'dot' to begin processing the file.
         let output = command.wait_with_output()?;
+
         if output.status.success() {
             Ok(File::open(path)?)
         } else {
@@ -63,7 +69,7 @@ pub trait Graph<N: Node, E: Edge> {
         let temp_dir = temp_dir();
         let path = temp_dir.join("graph.svg");
         self.draw_graph(&path)?;
-        // This will most only work on macOS.
+        // This will only work on macOS.
         // However, for the time being this is only being developed on and for macOS.
         let output = Command::new("open")
             .arg(&path)
@@ -78,12 +84,13 @@ pub trait Graph<N: Node, E: Edge> {
 
     /// Converts this graph into a `DOT` graph.
     fn format(&self) -> String {
+        let mut visited = HashSet::new();
         let mut text = String::from("digraph {\n");
         for node in self.nodes() {
-            node.format(&mut text);
+            node.format(&mut text, &mut visited);
         }
         for edge in self.edges() {
-            edge.format(&mut text);
+            edge.format(&mut text, &mut visited);
         }
         text += "}";
         text
@@ -95,16 +102,42 @@ pub trait Graph<N: Node, E: Edge> {
 /// Every node in a given graph has a unique id. If multiple nodes share the same id, edges to one
 /// node might point to any other node with the same id.
 pub trait Node {
+    type Edge<'a>: Edge where Self: 'a;
+
     /// A unique id for this node.
     // I'm unsure whether this should return an owned `String` or a reference `&str`.
     // This way, we don't encounter any problems trying when we derive the id from some other type,
     // for example, from a `u32`.
     fn id(&self) -> String;
 
+    fn label(&self) -> Option<String> {
+        None
+    }
+
+    /// Edges from this node.
+    fn edges(&self) -> Vec<Self::Edge<'_>> {
+        vec![]
+    }
+
     /// Formats this node into the `DOT` format. Returns this node's id.
-    fn format(&self, text: &mut String) {
+    fn format(&self, text: &mut String, visited: &mut HashSet<String>) {
         let id = escape_string(self.id());
-        writeln!(text, "{}\"{}\";", " ".repeat(4), id).unwrap();
+        if visited.contains(&id) {
+            // We have already added this node to the graph.
+            return;
+        }
+        visited.insert(id.clone());
+
+        let tags = self.label()
+            .map(|label| escape_string(label))
+            .map(|label| format!("label=\"{}\"", label))
+            .unwrap_or_else(|| String::new());
+
+        writeln!(text, "{}\"{}\"[{}];", " ".repeat(4), id, tags).unwrap();
+
+        for edge in self.edges() {
+            edge.format(text, visited);
+        }
     }
 }
 
@@ -113,17 +146,35 @@ pub trait Node {
 /// The edge points from the node from which this edge was returned, to the node specified by this
 /// edge.
 pub trait Edge {
-    fn left(&self) -> String;
+    type Node<'a>: Node where Self: 'a;
 
-    fn right(&self) -> String;
+    fn left_id(&self) -> String;
 
-    fn format(&self, text: &mut String) {
-        let left = escape_string(self.left());
-        let right = escape_string(self.right());
+    fn right_id(&self) -> String;
+
+    /// The node on this edge points to.
+    ///
+    /// An edge isn't required to return anything here if the node is visited
+    /// from elsewhere.
+    fn right(&self) -> Option<Self::Node<'_>> {
+        None
+    }
+
+    fn format(&self, text: &mut String, visited: &mut HashSet<String>) {
+        let left = escape_string(self.left_id());
+        let right = escape_string(self.right_id());
         writeln!(text, "{}\"{}\" -> \"{}\";", " ".repeat(4), left, right).unwrap();
+        if let Some(right) = self.right() {
+            right.format(text, visited);
+        }
     }
 }
 
 fn escape_string(text: String) -> String {
     text.replace('"', "\\\"")
+        .replace("{", "\\{")
+        .replace("}", "\\}")
+        .replace(";", "\\;")
+        .replace("(", "\\(")
+        .replace(")", "\\)")
 }

@@ -1,5 +1,6 @@
 use crate::cst::Span;
 use std::fmt;
+use std::fmt::Formatter;
 use std::ops::RangeBounds;
 
 /// A token is a character or sequence in the source code of some associated type.
@@ -14,6 +15,20 @@ impl<'text> Token {
         Self {
             kind,
             span: Span::new(text, range),
+        }
+    }
+}
+
+impl fmt::Display for Token {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        let kind = match self.kind {
+            TokenKind::Identifier => format!("\"{}\"", self.span.text),
+            _ => format!("{}", self.kind),
+        };
+        if f.alternate() {
+            write!(f, "{}-{}: {}", self.span.start_offset(), self.span.end_offset(), kind)
+        } else {
+            write!(f, "{}", kind)
         }
     }
 }
