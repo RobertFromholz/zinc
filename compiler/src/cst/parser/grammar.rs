@@ -42,10 +42,41 @@ impl<'text> Parser<'text> {
         assert!(self.at(TokenKind::Struct));
         self.expect(TokenKind::Struct);
         self.expect(TokenKind::Identifier);
-        self.expect(TokenKind::LeftBrace);
-        self.items(Some(TokenKind::RightBrace)); // FIXME: This is the incorrect syntax.
-        self.expect(TokenKind::RightBrace);
+        if self.at(TokenKind::Semicolon) {
+            self.consume(TokenKind::Semicolon);
+        } else {
+            self.expect(TokenKind::LeftBrace);
+            self.structure_fields();
+            self.expect(TokenKind::RightBrace);
+        }
         self.close(marker, TreeKind::Struct);
+    }
+    
+    const FIELD_RECOVERY: &'static [TokenKind] = &[TokenKind::LeftBrace, TokenKind::RightBrace];
+
+    fn structure_fields(&mut self) {
+        while !self.end_of_file() {
+            if self.at_any(Self::FIELD_RECOVERY).is_some() {
+                break;
+            }
+            if self.at_any(Self::ITEM_FIRST).is_some() {
+                break;
+            }
+            if self.at(TokenKind::Identifier) {
+                self.structure_field();
+                self.consume(TokenKind::Comma);
+            } else {
+                self.consume_with_error("expected 'field'");
+            }
+        }
+    }
+
+    fn structure_field(&mut self) {
+        let marker = self.open();
+        self.expect(TokenKind::Identifier);
+        self.expect(TokenKind::Colon);
+        self.value_type();
+        self.close(marker, TreeKind::Field);
     }
 
     fn function(&mut self, marker: OpenMarker) {

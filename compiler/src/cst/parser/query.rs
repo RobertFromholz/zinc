@@ -15,7 +15,7 @@ pub enum ParseKey {
 
 impl Query for ParseQuery {
     type Key = ParseKey;
-    type Output = Tree;
+    type Output = Option<Tree>;
 
     fn compute(handle: Handle<'_>, key: &Self::Key) -> Self::Output {
         let content = match key {
@@ -23,14 +23,14 @@ impl Query for ParseQuery {
                 // Read the file. This is done as its own query.
                 // That way, we clearly register that the parser has a dependency on the file content.
                 // Thus, if the file contents haven't changed, we don't need to parse the file again.
-                let text = handle.compute::<FileQuery>(path.clone());
+                let text = handle.compute::<FileQuery>(path.clone())?;
                 Cow::Owned(text)
             },
             ParseKey::Text(text) => Cow::Borrowed(text),
         };
         let mut parser = Parser::new(&content);
         parser.file();
-        parser.finish()
+        Some(parser.finish())
     }
 }
 
@@ -38,10 +38,10 @@ pub struct FileQuery;
 
 impl Query for FileQuery {
     type Key = PathBuf;
-    type Output = String;
+    type Output = Option<String>;
 
-    fn compute(handle: Handle<'_>, key: &Self::Key) -> Self::Output {
+    fn compute(_handle: Handle<'_>, key: &Self::Key) -> Self::Output {
         // TODO: Handle a potential error if we can't read the file.
-        fs::read_to_string(key).unwrap()
+        fs::read_to_string(key).ok()
     }
 }
