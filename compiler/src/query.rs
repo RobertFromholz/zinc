@@ -26,7 +26,7 @@
 
 use crate::dot;
 use std::any::{Any, TypeId};
-use std::cell::{Cell, RefCell};
+use std::cell::RefCell;
 use std::collections::hash_map::Entry;
 use std::collections::{HashMap, HashSet};
 use std::fmt;
@@ -42,8 +42,7 @@ use std::rc::Rc;
 /// The context cannot be accessed by queries. Instead, queries are given a `query::Handle`.
 pub struct Context {
     queries: RefCell<HashMap<QueryId, QueryData>>,
-    values: RefCell<HashMap<UnboundedQueryRef, Rc<dyn Any>>>,
-    counter: Cell<usize>,
+    values: RefCell<Vec<Rc<dyn Any>>>,
 }
 
 struct QueryData {
@@ -62,7 +61,7 @@ enum QueryState {
     /// This query has already been computed.
     ///
     /// The result will be returned immediately and the query will not be computed again.
-    Computed(UnboundedQueryRef),
+    Computed(usize),
 }
 
 impl Context {
@@ -70,8 +69,7 @@ impl Context {
     pub fn new() -> Self {
         Self {
             queries: RefCell::new(HashMap::new()),
-            values: RefCell::new(HashMap::new()),
-            counter: Cell::new(0),
+            values: RefCell::new(Vec::new()),
         }
     }
 
@@ -87,7 +85,7 @@ impl Context {
     pub fn get<T: Clone + 'static>(&self, key: QueryRef<T>) -> T {
         let values = self.values.borrow();
         // We know an UnboundedQueryRef must exist in Context::values.
-        let value = values.get(&key.key).unwrap();
+        let value = values.get(key.key).unwrap();
         // Two query_id's can only ever be equivalent if they are of the same query.
         // This means Q must be the same type, which means Q::Output must be the
         // same type. This means the already computed value must be of the Q::Output
@@ -158,17 +156,12 @@ impl Handle<'_> {
             context: self.context,
         }, key);
         // Cache the query's result.
-        // Calculate the next key at which to store the result.
-        let key = {
-            let key = self.context.counter.get();
-            self.context.counter.set(key + 1);
-            UnboundedQueryRef { key }
-        };
         // Store the result in the cache.
-        {
+        let key = {
             let mut values = self.context.values.borrow_mut();
-            values.insert(key, Rc::new(output.clone()));
-        }
+            values.push(Rc::new(output.clone()));
+            values.len() - 1
+        };
         // Mark the query as computed.
         {
             let mut queries = self.context.queries.borrow_mut();
@@ -253,14 +246,8 @@ pub struct QueryId {
 /// multiple times.
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
 pub struct QueryRef<T> {
-    key: UnboundedQueryRef,
-    phantom_data: PhantomData<T>,
-}
-
-/// A reference to the cached result of a query.
-#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
-struct UnboundedQueryRef {
     key: usize,
+    phantom_data: PhantomData<T>,
 }
 
 impl QueryId {
