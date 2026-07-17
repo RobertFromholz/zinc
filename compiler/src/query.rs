@@ -26,12 +26,13 @@
 
 use crate::dot;
 use std::any::{Any, TypeId};
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::collections::hash_map::Entry;
 use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::fmt::Debug;
 use std::hash::{Hash, Hasher};
+use std::marker::PhantomData;
 use std::rc::Rc;
 
 /// A context used to compute and track queries.
@@ -41,6 +42,8 @@ use std::rc::Rc;
 /// The context cannot be accessed by queries. Instead, queries are given a `query::Handle`.
 pub struct Context {
     queries: RefCell<HashMap<QueryId, QueryData>>,
+    values: RefCell<HashMap<UnboundedQueryRef, Rc<dyn Any>>>,
+    counter: Cell<usize>,
 }
 
 struct QueryData {
@@ -59,7 +62,7 @@ enum QueryState {
     /// This query has already been computed.
     ///
     /// The result will be returned immediately and the query will not be computed again.
-    Computed(Rc<dyn Any>),
+    Computed(UnboundedQueryRef),
 }
 
 impl Context {
@@ -67,16 +70,29 @@ impl Context {
     pub fn new() -> Self {
         Self {
             queries: RefCell::new(HashMap::new()),
+            values: RefCell::new(HashMap::new()),
+            counter: Cell::new(0),
         }
     }
 
     /// Compute a query.
-    pub fn compute<Q: Query>(&self, key: Q::Key) -> Q::Output {
+    pub fn compute<Q: Query>(&self, key: Q::Key) -> QueryRef<Q::Output> {
         let handle = Handle {
             query: None,
             context: self,
         };
         handle.compute::<Q>(key)
+    }
+
+    pub fn get<T: Clone + 'static>(&self, key: QueryRef<T>) -> T {
+        let values = self.values.borrow();
+        // We know an UnboundedQueryRef must exist in Context::values.
+        let value = values.get(&key.key).unwrap();
+        // Two query_id's can only ever be equivalent if they are of the same query.
+        // This means Q must be the same type, which means Q::Output must be the
+        // same type. This means the already computed value must be of the Q::Output
+        // type. If it isn't, we shouldn't try to recover.
+        value.downcast_ref::<T>().unwrap().clone()
     }
 }
 
@@ -89,7 +105,7 @@ pub struct Handle<'ctx> {
 }
 
 impl Handle<'_> {
-    pub fn compute<Q: Query>(&self, key: Q::Key) -> Q::Output {
+    pub fn compute<Q: Query>(&self, key: Q::Key) -> QueryRef<Q::Output> {
         let query = {
             let mut queries = self.context.queries.borrow_mut();
             let query = QueryId::new::<Q>(key);
@@ -113,12 +129,11 @@ impl Handle<'_> {
                         QueryState::Computing => {
                             panic!("Cycle detected: {:?} -> {:?}", self.query, query)
                         },
-                        QueryState::Computed(value) => {
-                            // Two query_id's can only ever be equivalent if they are of the same query.
-                            // This means Q must be the same type, which means Q::Output must be the
-                            // same type. This means the already computed value must be of the Q::Output
-                            // type. If it isn't, we shouldn't try to recover.
-                            return value.downcast_ref::<Q::Output>().unwrap().clone();
+                        QueryState::Computed(key) => {
+                            return QueryRef {
+                                key: *key,
+                                phantom_data: PhantomData,
+                            };
                         }
                     }
                 }
@@ -129,7 +144,6 @@ impl Handle<'_> {
                     });
                 }
             }
-
             query
         };
         // We have just created the 'query_id', so we know it is of the correct type.
@@ -143,14 +157,33 @@ impl Handle<'_> {
             query: Some(query.clone()),
             context: self.context,
         }, key);
+        // Cache the query's result.
+        // Calculate the next key at which to store the result.
+        let key = {
+            let key = self.context.counter.get();
+            self.context.counter.set(key + 1);
+            UnboundedQueryRef { key }
+        };
+        // Store the result in the cache.
+        {
+            let mut values = self.context.values.borrow_mut();
+            values.insert(key, Rc::new(output.clone()));
+        }
+        // Mark the query as computed.
         {
             let mut queries = self.context.queries.borrow_mut();
             // The query must exist in 'queries' since we just created it.
             let query = queries.get_mut(&query).unwrap();
-            // Cache the result.
-            query.state = QueryState::Computed(Rc::new(output.clone()));
+            query.state = QueryState::Computed(key);
         };
-        output
+        QueryRef {
+            key,
+            phantom_data: PhantomData,
+        }
+    }
+
+    pub fn get<T: Clone + 'static>(&self, key: QueryRef<T>) -> T {
+        self.context.get(key)
     }
 }
 
@@ -189,7 +222,7 @@ pub trait Query: 'static {
     /// The key *must* implement `PartialEq`, `Eq`, `Hash` and `Debug`.
     type Key: QueryKey;
     /// The result of this query.
-    type Output: Clone;
+    type Output: Clone + 'static;
 
     /// Compute this query. Called internally by a `query::Handle`.
     ///
@@ -210,6 +243,24 @@ pub struct QueryId {
     // Although this might be problematic since the name isn't guaranteed to be unique.
     name: &'static str,
     key: Rc<dyn QueryKey>,
+}
+
+/// A `QueryRef` uniquely references the result of a query.
+///
+/// A value indexed by `QueryRef` is guaranteed to exist in the context it was created.
+///
+/// A `QueryRef<T>` can be used in place of `T` to avoid storing a potentially large value
+/// multiple times.
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
+pub struct QueryRef<T> {
+    key: UnboundedQueryRef,
+    phantom_data: PhantomData<T>,
+}
+
+/// A reference to the cached result of a query.
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
+struct UnboundedQueryRef {
+    key: usize,
 }
 
 impl QueryId {
@@ -312,7 +363,7 @@ mod tests {
         fn compute(handle: Handle, key: &(usize, usize)) -> usize {
             let left = handle.compute::<LiteralQuery>(key.0);
             let right = handle.compute::<LiteralQuery>(key.1);
-            left + right
+            handle.get(left) + handle.get(right)
         }
     }
 
@@ -329,7 +380,7 @@ mod tests {
                 key => {
                     let left = handle.compute::<FibonacciQuery>(key - 1);
                     let right = handle.compute::<FibonacciQuery>(key - 2);
-                    left + right
+                    handle.get(left) + handle.get(right)
                 }
             }
         }
@@ -339,7 +390,7 @@ mod tests {
     fn simple_literal_query() {
         let context = Context::new();
         let value = context.compute::<LiteralQuery>(0);
-        assert_eq!(value, 0);
+        assert_eq!(context.get(value), 0);
         {
             let queries = context.queries.borrow();
             assert_eq!(queries.len(), 1);
@@ -350,7 +401,7 @@ mod tests {
     fn query_with_dependency() {
         let context = Context::new();
         let value = context.compute::<AddQuery>((2, 3));
-        assert_eq!(value, 5);
+        assert_eq!(context.get(value), 5);
         {
             let queries = context.queries.borrow();
             // We have executed 3 unique queries.
@@ -371,9 +422,9 @@ mod tests {
     fn simple_query_with_caching() {
         let context = Context::new();
         let value = context.compute::<AddQuery>((2, 3));
-        assert_eq!(value, 5);
+        assert_eq!(context.get(value), 5);
         let value = context.compute::<AddQuery>((3, 4));
-        assert_eq!(value, 7);
+        assert_eq!(context.get(value), 7);
         assert_eq!(context.queries.borrow().len(), 5);
     }
 
@@ -381,7 +432,7 @@ mod tests {
     fn query_with_caching() {
         let context = Context::new();
         let value = context.compute::<FibonacciQuery>(5);
-        assert_eq!(value, 5);
+        assert_eq!(context.get(value), 5);
         assert_eq!(context.queries.borrow().len(), 6);
     }
 }

@@ -23,7 +23,8 @@ impl Query for ParseQuery {
                 // Read the file. This is done as its own query.
                 // That way, we clearly register that the parser has a dependency on the file content.
                 // Thus, if the file contents haven't changed, we don't need to parse the file again.
-                let text = handle.compute::<FileQuery>(path.clone())?;
+                let key = handle.compute::<FileQuery>(path.clone());
+                let text = handle.get(key)?;
                 Cow::Owned(text)
             },
             ParseKey::Text(text) => Cow::Borrowed(text),
