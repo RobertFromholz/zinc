@@ -32,7 +32,6 @@ use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::fmt::Debug;
 use std::hash::{Hash, Hasher};
-use std::marker::PhantomData;
 use std::rc::Rc;
 
 /// A context used to compute and track queries.
@@ -60,7 +59,7 @@ enum QueryState {
 
     /// This query has already been computed.
     ///
-    /// The result will be returned immediately and the query will not be computed again.
+    /// The result will be returned immediately, and the query will not be computed again.
     Computed(usize),
 }
 
@@ -74,23 +73,12 @@ impl Context {
     }
 
     /// Compute a query.
-    pub fn compute<Q: Query>(&self, key: Q::Key) -> QueryRef<Q::Output> {
+    pub fn compute<Q: Query>(&self, key: Q::Key) -> Rc<Q::Output> {
         let handle = Handle {
             query: None,
             context: self,
         };
         handle.compute::<Q>(key)
-    }
-
-    pub fn get<T: Clone + 'static>(&self, key: QueryRef<T>) -> T {
-        let values = self.values.borrow();
-        // We know an UnboundedQueryRef must exist in Context::values.
-        let value = values.get(key.key).unwrap();
-        // Two query_id's can only ever be equivalent if they are of the same query.
-        // This means Q must be the same type, which means Q::Output must be the
-        // same type. This means the already computed value must be of the Q::Output
-        // type. If it isn't, we shouldn't try to recover.
-        value.downcast_ref::<T>().unwrap().clone()
     }
 }
 
@@ -103,7 +91,7 @@ pub struct Handle<'ctx> {
 }
 
 impl Handle<'_> {
-    pub fn compute<Q: Query>(&self, key: Q::Key) -> QueryRef<Q::Output> {
+    pub fn compute<Q: Query>(&self, key: Q::Key) -> Rc<Q::Output> {
         let query = {
             let mut queries = self.context.queries.borrow_mut();
             let query = QueryId::new::<Q>(key);
@@ -128,10 +116,9 @@ impl Handle<'_> {
                             panic!("Cycle detected: {:?} -> {:?}", self.query, query)
                         },
                         QueryState::Computed(key) => {
-                            return QueryRef {
-                                key: *key,
-                                phantom_data: PhantomData,
-                            };
+                            let values = self.context.values.borrow();
+                            let value = values.get(*key).unwrap().clone();
+                            return value.downcast::<Q::Output>().unwrap();
                         }
                     }
                 }
@@ -156,27 +143,19 @@ impl Handle<'_> {
             context: self.context,
         }, key);
         // Cache the query's result.
-        // Store the result in the cache.
+        let value = Rc::new(output);
         let key = {
             let mut values = self.context.values.borrow_mut();
-            values.push(Rc::new(output.clone()));
+            values.push(value.clone());
             values.len() - 1
         };
-        // Mark the query as computed.
         {
             let mut queries = self.context.queries.borrow_mut();
             // The query must exist in 'queries' since we just created it.
             let query = queries.get_mut(&query).unwrap();
             query.state = QueryState::Computed(key);
         };
-        QueryRef {
-            key,
-            phantom_data: PhantomData,
-        }
-    }
-
-    pub fn get<T: Clone + 'static>(&self, key: QueryRef<T>) -> T {
-        self.context.get(key)
+        value
     }
 }
 
@@ -236,18 +215,6 @@ pub struct QueryId {
     // Although this might be problematic since the name isn't guaranteed to be unique.
     name: &'static str,
     key: Rc<dyn QueryKey>,
-}
-
-/// A `QueryRef` uniquely references the result of a query.
-///
-/// A value indexed by `QueryRef` is guaranteed to exist in the context it was created.
-///
-/// A `QueryRef<T>` can be used in place of `T` to avoid storing a potentially large value
-/// multiple times.
-#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
-pub struct QueryRef<T> {
-    key: usize,
-    phantom_data: PhantomData<T>,
 }
 
 impl QueryId {
@@ -350,7 +317,7 @@ mod tests {
         fn compute(handle: Handle, key: &(usize, usize)) -> usize {
             let left = handle.compute::<LiteralQuery>(key.0);
             let right = handle.compute::<LiteralQuery>(key.1);
-            handle.get(left) + handle.get(right)
+            *left + *right
         }
     }
 
@@ -367,7 +334,7 @@ mod tests {
                 key => {
                     let left = handle.compute::<FibonacciQuery>(key - 1);
                     let right = handle.compute::<FibonacciQuery>(key - 2);
-                    handle.get(left) + handle.get(right)
+                    *left + *right
                 }
             }
         }
@@ -377,7 +344,7 @@ mod tests {
     fn simple_literal_query() {
         let context = Context::new();
         let value = context.compute::<LiteralQuery>(0);
-        assert_eq!(context.get(value), 0);
+        assert_eq!(*value, 0);
         {
             let queries = context.queries.borrow();
             assert_eq!(queries.len(), 1);
@@ -388,7 +355,7 @@ mod tests {
     fn query_with_dependency() {
         let context = Context::new();
         let value = context.compute::<AddQuery>((2, 3));
-        assert_eq!(context.get(value), 5);
+        assert_eq!(*value, 5);
         {
             let queries = context.queries.borrow();
             // We have executed 3 unique queries.
@@ -409,9 +376,9 @@ mod tests {
     fn simple_query_with_caching() {
         let context = Context::new();
         let value = context.compute::<AddQuery>((2, 3));
-        assert_eq!(context.get(value), 5);
+        assert_eq!(*value, 5);
         let value = context.compute::<AddQuery>((3, 4));
-        assert_eq!(context.get(value), 7);
+        assert_eq!(*value, 7);
         assert_eq!(context.queries.borrow().len(), 5);
     }
 
@@ -419,7 +386,7 @@ mod tests {
     fn query_with_caching() {
         let context = Context::new();
         let value = context.compute::<FibonacciQuery>(5);
-        assert_eq!(context.get(value), 5);
+        assert_eq!(*value, 5);
         assert_eq!(context.queries.borrow().len(), 6);
     }
 }

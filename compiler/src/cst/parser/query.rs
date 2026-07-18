@@ -1,9 +1,8 @@
-use std::borrow::Cow;
-use std::fs;
-use std::path::PathBuf;
 use crate::cst::parser::Parser;
 use crate::cst::tree::Tree;
 use crate::query::{Handle, Query};
+use std::fs;
+use std::path::PathBuf;
 
 pub struct ParseQuery;
 
@@ -18,18 +17,18 @@ impl Query for ParseQuery {
     type Output = Option<Tree>;
 
     fn compute(handle: Handle<'_>, key: &Self::Key) -> Self::Output {
-        let content = match key {
+        let content;
+        let text = match key {
             ParseKey::File(path) => {
                 // Read the file. This is done as its own query.
                 // That way, we clearly register that the parser has a dependency on the file content.
                 // Thus, if the file contents haven't changed, we don't need to parse the file again.
-                let key = handle.compute::<FileQuery>(path.clone());
-                let text = handle.get(key)?;
-                Cow::Owned(text)
+                content = handle.compute::<FileQuery>(path.clone());
+                content.as_deref()?
             },
-            ParseKey::Text(text) => Cow::Borrowed(text),
+            ParseKey::Text(text) => text,
         };
-        let mut parser = Parser::new(&content);
+        let mut parser = Parser::new(text);
         parser.file();
         Some(parser.finish())
     }
