@@ -92,58 +92,80 @@ pub struct Handle<'ctx> {
 
 impl Handle<'_> {
     pub fn compute<Q: Query>(&self, key: Q::Key) -> Rc<Q::Output> {
-        let query = {
-            let mut queries = self.context.queries.borrow_mut();
-            let query = QueryId::new::<Q>(key);
+        let (query, value) = self.create_query::<Q>(key);
 
-            // Register this query as a dependency to the parent query.
-            // We technically haven't created the query yet, but it will either succeed or panic.
-            // By doing this now, we can safely return later if the query has already been computed
-            // without risking forgetting to register the dependency.
-            if let Some(parent_query) = &self.query {
-                // We assume the parent query exists in 'queries'.
-                // Otherwise, 'queries' must be corrupted, and there isn't a good way for us to
-                // recover.
-                let parent = queries.get_mut(parent_query).unwrap();
-                parent.dependencies.insert(query.clone());
-            }
+        if let Some(value) = value {
+            return value;
+        }
 
-            match queries.entry(query.clone()) {
-                Entry::Occupied(entry) => {
-                    let data = entry.get();
-                    match &data.state {
-                        QueryState::Computing => {
-                            panic!("Cycle detected: {:?} -> {:?}", self.query, query)
-                        },
-                        QueryState::Computed(key) => {
-                            let values = self.context.values.borrow();
-                            let value = values.get(*key).unwrap().clone();
-                            return value.downcast::<Q::Output>().unwrap();
-                        }
-                    }
-                }
-                Entry::Vacant(entry) => {
-                    entry.insert(QueryData {
-                        state: QueryState::Computing,
-                        dependencies: HashSet::new(),
-                    });
-                }
-            }
-            query
-        };
         // We have just created the 'query_id', so we know it is of the correct type.
         // We need to downcast it since we move the key into 'query_id'.
         // Ideally, we'd want to just be able to clone the key, but the key isn't required to be
         // cloneable. This is because requiring cloneable makes it more difficult to store the key
         // as a dynamic object since Clone isn't dyn compatible.
         let key = query.key.as_any().downcast_ref::<Q::Key>().unwrap();
-        // Actually compute the query.
-        let output = Q::compute(Handle {
+
+        let value = Q::compute(Handle {
             query: Some(query.clone()),
             context: self.context,
         }, key);
-        // Cache the query's result.
-        let value = Rc::new(output);
+        let value = Rc::new(value);
+
+        self.complete_query::<Q>(query, value.clone());
+
+        value
+    }
+
+    fn create_query<Q: Query>(&self, key: Q::Key) -> (QueryId, Option<Rc<Q::Output>>) {
+        let query = QueryId::new::<Q>(key);
+
+        // Register this query as a dependency to the parent query.
+        // We technically haven't created the query yet, but it will either succeed or panic.
+        // By doing this now, we can safely return later if the query has already been computed
+        // without risking forgetting to register the dependency.
+        self.register_dependency(&query);
+
+        let mut queries = self.context.queries.borrow_mut();
+        match queries.entry(query.clone()) {
+            Entry::Occupied(entry) => {
+                let data = entry.get();
+                match &data.state {
+                    QueryState::Computing => {
+                        panic!("Cycle detected: {:?} -> {:?}", self.query, query)
+                    }
+                    QueryState::Computed(key) => {
+                        let values = self.context.values.borrow();
+                        let value = values.get(*key).unwrap().clone();
+                        // Downcast the query's return value to its actual type.
+                        let value = value.downcast::<Q::Output>().unwrap();
+                        return (query, Some(value));
+                    }
+                }
+            }
+            Entry::Vacant(entry) => {
+                entry.insert(QueryData {
+                    state: QueryState::Computing,
+                    dependencies: HashSet::new(),
+                });
+            }
+        }
+        (query, None)
+    }
+
+    /// Register the provided query as a dependency to `self.query`.
+    fn register_dependency(&self, dependency: &QueryId) {
+        if let Some(parent) = &self.query {
+            // We assume the parent query exists in 'queries'.
+            // Otherwise, 'queries' must be corrupted, and there isn't a good way for us to
+            // recover.
+            let mut queries = self.context.queries.borrow_mut();
+            let parent = queries.get_mut(parent).unwrap();
+            parent.dependencies.insert(dependency.clone());
+        }
+    }
+
+    /// Mark a query as completed.
+    fn complete_query<Q: Query>(&self, query: QueryId, value: Rc<Q::Output>) {
         let key = {
             let mut values = self.context.values.borrow_mut();
             values.push(value.clone());
@@ -151,11 +173,10 @@ impl Handle<'_> {
         };
         {
             let mut queries = self.context.queries.borrow_mut();
-            // The query must exist in 'queries' since we just created it.
+            // The query must exist in 'queries'.
             let query = queries.get_mut(&query).unwrap();
             query.state = QueryState::Computed(key);
         };
-        value
     }
 }
 
