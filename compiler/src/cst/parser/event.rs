@@ -84,7 +84,7 @@ impl EventStream {
                 Event::Token { token } => {
                     match stack.last_mut() {
                         Some(parent) => {
-                            offset = token.span.end_offset();
+                            offset += token.length;
                             parent.children.push(Node::Token(token));
                         }
                         None => {
@@ -245,11 +245,11 @@ mod tests {
     fn test_iterate_events() {
         compare_event_stream(|stream| {
             let marker = stream.open();
-            stream.consume(Token::new("abc", 0..3, TokenKind::Identifier));
+            stream.consume(Token::new(TokenKind::Identifier, 3));
             stream.close(marker, TreeKind::File);
         }, vec![
             Event::Start { kind: TreeKind::File, previous: None },
-            Event::Token { token: Token::new("abc", 0..3, TokenKind::Identifier) },
+            Event::Token { token: Token::new(TokenKind::Identifier, 3) },
             Event::Finish
         ]);
     }
@@ -258,17 +258,17 @@ mod tests {
     fn test_iterate_non_linear_event() {
         compare_event_stream(|stream| {
             let marker = stream.open();
-            stream.consume(Token::new("abcdef", 0..3, TokenKind::Identifier));
+            stream.consume(Token::new(TokenKind::Identifier, 3));
             let marker = stream.close(marker, TreeKind::Module);
             let marker = stream.open_before(marker);
-            stream.consume(Token::new("abcdef", 3..6, TokenKind::Identifier));
+            stream.consume(Token::new(TokenKind::Identifier, 3));
             stream.close(marker, TreeKind::File);
         }, vec![
             Event::Start { kind: TreeKind::File, previous: None },
             Event::Start { kind: TreeKind::Module, previous: Some(3) },
-            Event::Token { token: Token::new("abcdef", 0..3, TokenKind::Identifier) },
+            Event::Token { token: Token::new(TokenKind::Identifier, 3) },
             Event::Finish,
-            Event::Token { token: Token::new("abcdef", 3..6, TokenKind::Identifier) },
+            Event::Token { token: Token::new(TokenKind::Identifier, 3) },
             Event::Finish,
         ])
     }
@@ -300,7 +300,7 @@ mod tests {
     fn build_event_stream() {
         let mut stream = EventStream::new();
         let marker = stream.open();
-        stream.consume(Token::new("abc", 0..3, TokenKind::Identifier));
+        stream.consume(Token::new(TokenKind::Identifier, 3));
         stream.close(marker, TreeKind::File);
         let tree = stream.build();
         assert_eq!(
@@ -308,7 +308,7 @@ mod tests {
                 kind: TreeKind::File,
                 start_offset: 0,
                 children: vec![
-                    Node::Token(Token::new("abc", 0..3, TokenKind::Identifier))
+                    Node::Token(Token::new(TokenKind::Identifier, 3))
                 ]
             },
             tree

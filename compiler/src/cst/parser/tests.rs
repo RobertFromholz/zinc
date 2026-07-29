@@ -14,8 +14,8 @@ fn tree<'text>(kind: TreeKind, start_offset: usize, children: impl Into<Vec<Node
     Node::Tree(Tree::new(kind, start_offset, children))
 }
 
-fn token(text: &'_ str, range: std::ops::Range<usize>, kind: TokenKind) -> Node {
-    Node::Token(Token::new(text, range, kind))
+fn token(kind: TokenKind, length: usize) -> Node {
+    Node::Token(Token::new(kind, length))
 }
 
 #[test]
@@ -24,17 +24,17 @@ fn parse_struct_declaration() {
         struct Foo {}
     ";
     verify(text, &[
-        token(text, 0..9, TokenKind::Whitespace),
+        token(TokenKind::Whitespace, 9),
         tree(TreeKind::Items, 9, &[
             tree(TreeKind::Struct, 9, &[
-                token(text, 9..15, TokenKind::Struct),
-                token(text, 15..16, TokenKind::Whitespace),
-                token(text, 16..19, TokenKind::Identifier),
-                token(text, 19..20, TokenKind::Whitespace),
-                token(text, 20..21, TokenKind::LeftBrace),
-                token(text, 21..22, TokenKind::RightBrace),
+                token(TokenKind::Struct, 6),
+                token(TokenKind::Whitespace, 1),
+                token(TokenKind::Identifier, 3),
+                token(TokenKind::Whitespace, 1),
+                token(TokenKind::LeftBrace, 1),
+                token(TokenKind::RightBrace, 1),
             ]),
-            token(text, 22..27, TokenKind::Whitespace),
+            token(TokenKind::Whitespace, 5),
         ])
     ]);
 }
@@ -48,37 +48,37 @@ fn parse_struct_with_fields() {
         }
     ";
     verify(text, &[
-        token(text, 0..9, TokenKind::Whitespace),
+        token(TokenKind::Whitespace, 9),
         tree(TreeKind::Items, 9, &[
             tree(TreeKind::Struct, 9, &[
-                token(text, 9..15, TokenKind::Struct),
-                token(text, 15..16, TokenKind::Whitespace),
-                token(text, 16..19, TokenKind::Identifier),
-                token(text, 19..20, TokenKind::Whitespace),
-                token(text, 20..21, TokenKind::LeftBrace),
-                token(text, 21..34, TokenKind::Whitespace),
+                token(TokenKind::Struct, 6),
+                token(TokenKind::Whitespace, 1),
+                token(TokenKind::Identifier, 3),
+                token(TokenKind::Whitespace, 1),
+                token(TokenKind::LeftBrace, 1),
+                token(TokenKind::Whitespace, 13),
                 tree(TreeKind::Field, 34, &[
-                    token(text, 34..37, TokenKind::Identifier),
-                    token(text, 37..38, TokenKind::Colon),
-                    token(text, 38..39, TokenKind::Whitespace),
+                    token(TokenKind::Identifier, 3),
+                    token(TokenKind::Colon, 1),
+                    token(TokenKind::Whitespace, 1),
                     tree(TreeKind::Type, 39, &[
-                        token(text, 39..42, TokenKind::Identifier),
+                        token(TokenKind::Identifier, 3),
                     ])
                 ]),
-                token(text, 42..43, TokenKind::Comma),
-                token(text, 43..56, TokenKind::Whitespace),
+                token(TokenKind::Comma, 1),
+                token(TokenKind::Whitespace, 13),
                 tree(TreeKind::Field, 56, &[
-                    token(text, 56..59, TokenKind::Identifier),
-                    token(text, 59..60, TokenKind::Colon),
-                    token(text, 60..61, TokenKind::Whitespace),
+                    token(TokenKind::Identifier, 3),
+                    token(TokenKind::Colon, 1),
+                    token(TokenKind::Whitespace, 1),
                     tree(TreeKind::Type, 61, &[
-                        token(text, 61..64, TokenKind::Identifier),
+                        token(TokenKind::Identifier, 3),
                     ])
                 ]),
-                token(text, 64..73, TokenKind::Whitespace),
-                token(text, 73..74, TokenKind::RightBrace),
+                token(TokenKind::Whitespace, 9),
+                token(TokenKind::RightBrace, 1),
             ]),
-            token(text, 74..79, TokenKind::Whitespace),
+            token(TokenKind::Whitespace, 5),
         ])
     ]);
 }
@@ -89,29 +89,29 @@ fn parse_function_declaration() {
         fn foo_bar() -> Foo {}
     ";
     verify(text, &[
-        token(text, 0..9, TokenKind::Whitespace),
+        token(TokenKind::Whitespace, 9),
         tree(TreeKind::Items, 9, &[
             tree(TreeKind::Function, 9, &[
-                token(text, 9..11, TokenKind::Fn),
-                token(text, 11..12, TokenKind::Whitespace),
-                token(text, 12..19, TokenKind::Identifier),
+                token(TokenKind::Fn, 2),
+                token(TokenKind::Whitespace, 1),
+                token(TokenKind::Identifier, 7),
                 tree(TreeKind::Parameters, 19,  &[
-                    token(text, 19..20, TokenKind::LeftParentheses),
-                    token(text, 20..21, TokenKind::RightParentheses),
+                    token(TokenKind::LeftParentheses, 1),
+                    token(TokenKind::RightParentheses, 1),
                 ]),
-                token(text, 21..22, TokenKind::Whitespace),
-                token(text, 22..24, TokenKind::RightArrow),
-                token(text, 24..25, TokenKind::Whitespace),
+                token(TokenKind::Whitespace, 1),
+                token(TokenKind::RightArrow, 2),
+                token(TokenKind::Whitespace, 1),
                 tree(TreeKind::Type, 25, &[
-                    token(text, 25..28, TokenKind::Identifier),
+                    token(TokenKind::Identifier, 3),
                 ]),
-                token(text, 28..29, TokenKind::Whitespace),
+                token(TokenKind::Whitespace, 1),
                 tree(TreeKind::BlockExpression, 29, &[
-                    token(text, 29..30, TokenKind::LeftBrace),
-                    token(text, 30..31, TokenKind::RightBrace),
+                    token(TokenKind::LeftBrace, 1),
+                    token(TokenKind::RightBrace, 1),
                 ])
             ]),
-            token(text, 31..36, TokenKind::Whitespace)
+            token(TokenKind::Whitespace, 5)
         ]),
     ])
 }

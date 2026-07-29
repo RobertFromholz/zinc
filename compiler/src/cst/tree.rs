@@ -9,6 +9,8 @@ use std::fmt::Formatter;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Tree {
     pub(super) kind: TreeKind,
+    // We need to store the start offset in the tree as well.
+    // We can derive it from the tree's children, but only if it has any children.
     pub(super) start_offset: usize,
     pub(super) children: Vec<Node>,
 }
