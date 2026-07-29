@@ -1,15 +1,15 @@
 //! A `Cursor` reads source code and converts it into a stream of lexeme.
-//! 
+//!
 //! A `Lexeme` represents the position of a token. Unlike a token, a lexeme does not have a type. 
 //! The type is determined by the lexer, which converts the lexeme into a token.
-//! 
+//!
 //! The lexer instructs the cursor when to consume characters and when to start a new lexeme.
 
 use std::str::Chars;
 use crate::cst::Span;
 
 /// A `Cursor` reads source code and converts it into a stream of lexeme.
-/// 
+///
 /// The cursor knows where it is in the source code, as-well as where the current lexeme started 
 /// and how long it is. It does not, however, know anything about how to tokenize the source code.
 /// The lexer is responsible for instructing the cursor when to consume characters and when to
@@ -33,12 +33,12 @@ impl<'text> Cursor<'text> {
     }
 
     /// Returns the current lexeme.
-    pub fn current(&self) -> Span {
+    pub fn current(&self) -> Span<'text> {
         Span::new(self.text, self.start_offset..self.start_offset + self.length)
     }
 
     /// Close the current lexeme. The current lexeme is returned.
-    pub fn close(&mut self) -> Span {
+    pub fn close(&mut self) -> Span<'text> {
         let current = self.current();
         self.start_offset += self.length;
         self.length = 0;
@@ -73,7 +73,7 @@ impl<'text> Cursor<'text> {
     }
 
     /// Return the character at the given offset without consuming it.
-    /// 
+    ///
     /// An offset of `0` indicates the next character to be consumed.
     pub fn peek_at_offset(&self, offset: usize) -> Option<char> {
         self.iterator.clone().nth(offset)
@@ -123,7 +123,7 @@ mod tests {
         assert_eq!(cursor.peek(), Some('a'));
         assert_eq!(cursor.consume(), Some('a'));
         assert_eq!(cursor.peek(), Some('b'));
-        assert_eq!(cursor.close(), Span::new( text, 0..1))
+        assert_eq!(cursor.close(), Span::new(text, 0..1))
     }
 
     #[test]
