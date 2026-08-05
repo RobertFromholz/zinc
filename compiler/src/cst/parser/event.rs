@@ -53,7 +53,6 @@ impl EventStream {
     }
 
     pub fn build(self) -> Tree {
-        let mut offset = 0;
         let mut stack = Vec::new();
         let mut iter = self.into_iter();
         
@@ -61,7 +60,6 @@ impl EventStream {
             match event {
                 Event::Start { kind, .. } => stack.push(Tree {
                     kind,
-                    start_offset: offset,
                     children: Vec::new(),
                 }),
                 Event::Finish => {
@@ -84,7 +82,6 @@ impl EventStream {
                 Event::Token { token } => {
                     match stack.last_mut() {
                         Some(parent) => {
-                            offset += token.length;
                             parent.children.push(Node::Token(token));
                         }
                         None => {
@@ -306,7 +303,6 @@ mod tests {
         assert_eq!(
             Tree {
                 kind: TreeKind::File,
-                start_offset: 0,
                 children: vec![
                     Node::Token(Token::new(TokenKind::Identifier, 3))
                 ]
