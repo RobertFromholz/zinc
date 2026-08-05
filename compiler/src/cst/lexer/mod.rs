@@ -2,7 +2,7 @@
 
 mod cursor;
 
-use super::{Token, TokenKind};
+use super::{GreenToken, TokenKind};
 use cursor::Cursor;
 use std::collections::VecDeque;
 
@@ -11,31 +11,33 @@ use std::collections::VecDeque;
 /// The lexer will not return combined tokens. A combined token (e.g. '->') is built up of other
 /// tokens ('-' and '>'). The lexer is not aware whether a combined token is expected.
 pub struct Lexer<'text> {
+    text: &'text str,
     cursor: Cursor<'text>,
-    queue: VecDeque<Token>,
+    queue: VecDeque<GreenToken>,
 }
 
 impl<'text> Lexer<'text> {
     pub fn new(text: &'text str) -> Self {
         Self {
+            text,
             cursor: Cursor::new(text),
             queue: VecDeque::new(),
         }
     }
 
     /// Consumes and returns the next token.
-    pub fn next(&mut self) -> Option<Token> {
+    pub fn next(&mut self) -> Option<GreenToken> {
         self.queue.pop_front()
             .or_else(|| self.create())
     }
 
     /// Returns the next token without consuming it.
-    pub fn peek(&mut self) -> Option<Token> {
+    pub fn peek(&mut self) -> Option<GreenToken> {
         self.peek_at_offset(0)
     }
 
     /// Returns the token at the given offset without consuming it.
-    pub fn peek_at_offset(&mut self, offset: usize) -> Option<Token> {
+    pub fn peek_at_offset(&mut self, offset: usize) -> Option<GreenToken> {
         while self.queue.len() <= offset {
             let next = self.create()?;
             self.queue.push_back(next);
@@ -46,7 +48,7 @@ impl<'text> Lexer<'text> {
 
     /// Check if upcoming tokens can be combined into a new token of the expected kind.
     /// If so, consumes upcoming tokens and returns a new token.
-    pub fn next_kind(&mut self, kind: TokenKind) -> Option<Token> {
+    pub fn next_kind(&mut self, kind: TokenKind) -> Option<GreenToken> {
         let token = self.peek_kind(kind)?;
         for _ in kind.decompose() {
             self.next();
@@ -56,14 +58,14 @@ impl<'text> Lexer<'text> {
 
     /// Check if upcoming tokens can be combined into a new token of the expected kind.
     /// If so, returns a new token.
-    pub fn peek_kind(&mut self, kind: TokenKind) -> Option<Token> {
+    pub fn peek_kind(&mut self, kind: TokenKind) -> Option<GreenToken> {
         self.peek_kind_at_offset(kind, 0)
     }
 
     /// Check if upcoming tokens starting at the given offset from the current position can
     /// be combined into a new token of the expected kind.
     /// If so, returns a new token.
-    pub fn peek_kind_at_offset(&mut self, kind: TokenKind, offset: usize) -> Option<Token> {
+    pub fn peek_kind_at_offset(&mut self, kind: TokenKind, offset: usize) -> Option<GreenToken> {
         kind.decompose().into_iter()
             .enumerate()
             .map(|(i, _)| self.peek_at_offset(i + offset))
@@ -71,7 +73,7 @@ impl<'text> Lexer<'text> {
             .and_then(|parts| kind.combine(&parts))
     }
 
-    fn create(&mut self) -> Option<Token> {
+    fn create(&mut self) -> Option<GreenToken> {
         let next = self.cursor.consume()?;
         let kind = match next {
             next if is_whitespace(next) => self.whitespace(),
@@ -89,8 +91,8 @@ impl<'text> Lexer<'text> {
             ')' => TokenKind::RightParentheses,
             _ => TokenKind::Unknown
         };
-        let span = self.cursor.close();
-        Some(Token::new(kind, span.length()))
+        let lexeme = self.cursor.close();
+        Some(GreenToken { kind, length: lexeme.length })
     }
 
     fn whitespace(&mut self) -> TokenKind {
@@ -100,8 +102,8 @@ impl<'text> Lexer<'text> {
 
     fn identifier(&mut self) -> TokenKind {
         self.cursor.consume_while(is_identifier_continue);
-        let span = self.cursor.current();
-        let text = span.text();
+        let lexeme = self.cursor.current();
+        let text = &self.text[lexeme.start_offset..lexeme.start_offset + lexeme.length];
         TokenKind::try_from(text)
             .unwrap_or(TokenKind::Identifier)
     }
@@ -113,7 +115,7 @@ impl<'text> Lexer<'text> {
 }
 
 impl<'text> Iterator for Lexer<'text> {
-    type Item = Token;
+    type Item = GreenToken;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.next()
@@ -144,9 +146,9 @@ mod tests {
     fn test_next() {
         let text = "foo 123";
         let mut lexer = Lexer::new(text);
-        assert_eq!(Some(Token::new(TokenKind::Identifier, 3)), lexer.next());
-        assert_eq!(Some(Token::new(TokenKind::Whitespace, 1)), lexer.next());
-        assert_eq!(Some(Token::new(TokenKind::Integer, 3)), lexer.next());
+        assert_eq!(Some(GreenToken { kind: TokenKind::Identifier, length: 3 }), lexer.next());
+        assert_eq!(Some(GreenToken { kind: TokenKind::Whitespace, length: 1 }), lexer.next());
+        assert_eq!(Some(GreenToken { kind: TokenKind::Integer, length: 3 }), lexer.next());
         assert_eq!(None, lexer.next());
     }
 
@@ -154,21 +156,21 @@ mod tests {
     fn test_peek() {
         let text = "foo bar";
         let mut lexer = Lexer::new(text);
-        assert_eq!(Some(Token::new(TokenKind::Identifier, 3)), lexer.peek());
-        assert_eq!(Some(Token::new(TokenKind::Identifier, 3)), lexer.peek());
-        assert_eq!(Some(Token::new(TokenKind::Identifier, 3)), lexer.next());
-        assert_eq!(Some(Token::new(TokenKind::Whitespace, 1)), lexer.peek());
+        assert_eq!(Some(GreenToken { kind: TokenKind::Identifier, length: 3 }), lexer.peek());
+        assert_eq!(Some(GreenToken { kind: TokenKind::Identifier, length: 3 }), lexer.peek());
+        assert_eq!(Some(GreenToken { kind: TokenKind::Identifier, length: 3 }), lexer.next());
+        assert_eq!(Some(GreenToken { kind: TokenKind::Whitespace, length: 1 }), lexer.peek());
     }
 
     #[test]
     fn test_peek_at_offset() {
         let text = "foo bar";
         let mut lexer = Lexer::new(text);
-        assert_eq!(Some(Token::new(TokenKind::Identifier, 3)), lexer.peek_at_offset(0));
-        assert_eq!(Some(Token::new(TokenKind::Whitespace, 1)), lexer.peek_at_offset(1));
-        assert_eq!(Some(Token::new(TokenKind::Identifier, 3)), lexer.peek_at_offset(2));
-        assert_eq!(Some(Token::new(TokenKind::Identifier, 3)), lexer.next());
-        assert_eq!(Some(Token::new(TokenKind::Whitespace, 1)), lexer.peek());
+        assert_eq!(Some(GreenToken { kind: TokenKind::Identifier, length: 3 }), lexer.peek_at_offset(0));
+        assert_eq!(Some(GreenToken { kind: TokenKind::Whitespace, length: 1 }), lexer.peek_at_offset(1));
+        assert_eq!(Some(GreenToken { kind: TokenKind::Identifier, length: 3 }), lexer.peek_at_offset(2));
+        assert_eq!(Some(GreenToken { kind: TokenKind::Identifier, length: 3 }), lexer.next());
+        assert_eq!(Some(GreenToken { kind: TokenKind::Whitespace, length: 1 }), lexer.peek());
     }
 
     #[test]
@@ -187,7 +189,7 @@ mod tests {
         let lexer = Lexer::new(text);
         assert_eq!(
             lexer.collect::<Vec<_>>(),
-            vec![Token::new(TokenKind::Unknown, 2)]
+            vec![GreenToken { kind: TokenKind::Unknown, length: 2 }]
         );
     }
 
@@ -200,13 +202,13 @@ mod tests {
         assert_eq!(
             lexer.collect::<Vec<_>>(),
             vec![
-                Token::new(TokenKind::Unknown, 4),
-                Token::new(TokenKind::Unknown, 3),
-                Token::new(TokenKind::Unknown, 4),
-                Token::new(TokenKind::Unknown, 3),
-                Token::new(TokenKind::Unknown, 4),
-                Token::new(TokenKind::Unknown, 3),
-                Token::new(TokenKind::Unknown, 4),
+                GreenToken { kind: TokenKind::Unknown, length: 4 },
+                GreenToken { kind: TokenKind::Unknown, length: 3 },
+                GreenToken { kind: TokenKind::Unknown, length: 4 },
+                GreenToken { kind: TokenKind::Unknown, length: 3 },
+                GreenToken { kind: TokenKind::Unknown, length: 4 },
+                GreenToken { kind: TokenKind::Unknown, length: 3 },
+                GreenToken { kind: TokenKind::Unknown, length: 4 },
             ]
         );
     }
@@ -217,7 +219,7 @@ mod tests {
         let lexer = Lexer::new(text);
         assert_eq!(
             lexer.collect::<Vec<_>>(),
-            vec![Token::new(TokenKind::Identifier, 3)]
+            vec![GreenToken { kind: TokenKind::Identifier, length: 3 }]
         );
     }
 
@@ -227,7 +229,7 @@ mod tests {
         let lexer = Lexer::new(text);
         assert_eq!(
             lexer.collect::<Vec<_>>(),
-            vec![Token::new(TokenKind::Identifier, 6)]
+            vec![GreenToken { kind: TokenKind::Identifier, length: 6 }]
         );
     }
 
@@ -237,7 +239,7 @@ mod tests {
         let lexer = Lexer::new(text);
         assert_eq!(
             lexer.collect::<Vec<_>>(),
-            vec![Token::new(TokenKind::Identifier, 7)]
+            vec![GreenToken { kind: TokenKind::Identifier, length: 7 }]
         );
     }
 
@@ -247,7 +249,7 @@ mod tests {
         let lexer = Lexer::new(text);
         assert_eq!(
             lexer.collect::<Vec<_>>(),
-            vec![Token::new(TokenKind::Identifier, 4)]
+            vec![GreenToken { kind: TokenKind::Identifier, length: 4 }]
         );
     }
 
@@ -257,7 +259,7 @@ mod tests {
         let lexer = Lexer::new(text);
         assert_eq!(
             lexer.collect::<Vec<_>>(),
-            vec![Token::new(TokenKind::Whitespace, text.len())]
+            vec![GreenToken { kind: TokenKind::Whitespace, length: text.len() }]
         );
     }
 
@@ -268,11 +270,11 @@ mod tests {
         assert_eq!(
             lexer.collect::<Vec<_>>(),
             vec![
-                Token::new(TokenKind::Integer, 3),
-                Token::new(TokenKind::Whitespace, 1),
-                Token::new(TokenKind::Integer, 3),
-                Token::new(TokenKind::Whitespace, 1),
-                Token::new(TokenKind::Integer, 1),
+                GreenToken { kind: TokenKind::Integer, length: 3 },
+                GreenToken { kind: TokenKind::Whitespace, length: 1 },
+                GreenToken { kind: TokenKind::Integer, length: 3 },
+                GreenToken { kind: TokenKind::Whitespace, length: 1 },
+                GreenToken { kind: TokenKind::Integer, length: 1 },
             ]
         );
     }
@@ -284,11 +286,11 @@ mod tests {
         assert_eq!(
             lexer.collect::<Vec<_>>(),
             vec![
-                Token::new(TokenKind::Struct, 6),
-                Token::new(TokenKind::Whitespace, 1),
-                Token::new(TokenKind::Let, 3),
-                Token::new(TokenKind::Whitespace, 1),
-                Token::new(TokenKind::Fn, 2),
+                GreenToken { kind: TokenKind::Struct, length: 6 },
+                GreenToken { kind: TokenKind::Whitespace, length: 1 },
+                GreenToken { kind: TokenKind::Let, length: 3 },
+                GreenToken { kind: TokenKind::Whitespace, length: 1 },
+                GreenToken { kind: TokenKind::Fn, length: 2 },
             ]
         );
     }
@@ -300,13 +302,13 @@ mod tests {
         assert_eq!(
             lexer.collect::<Vec<_>>(),
             vec![
-                Token::new(TokenKind::Comma, 1),
-                Token::new(TokenKind::Colon, 1),
-                Token::new(TokenKind::Semicolon, 1),
-                Token::new(TokenKind::Equals, 1),
-                Token::new(TokenKind::Minus, 1),
-                Token::new(TokenKind::GreaterThan, 1),
-                Token::new(TokenKind::Unknown, 1),
+                GreenToken { kind: TokenKind::Comma, length: 1 },
+                GreenToken { kind: TokenKind::Colon, length: 1 },
+                GreenToken { kind: TokenKind::Semicolon, length: 1 },
+                GreenToken { kind: TokenKind::Equals, length: 1 },
+                GreenToken { kind: TokenKind::Minus, length: 1 },
+                GreenToken { kind: TokenKind::GreaterThan, length: 1 },
+                GreenToken { kind: TokenKind::Unknown, length: 1 },
             ]
         );
     }
@@ -318,10 +320,10 @@ mod tests {
         assert_eq!(
             lexer.collect::<Vec<_>>(),
             vec![
-                Token::new(TokenKind::LeftBrace, 1),
-                Token::new(TokenKind::RightBrace, 1),
-                Token::new(TokenKind::LeftParentheses, 1),
-                Token::new(TokenKind::RightParentheses, 1),
+                GreenToken { kind: TokenKind::LeftBrace, length: 1 },
+                GreenToken { kind: TokenKind::RightBrace, length: 1 },
+                GreenToken { kind: TokenKind::LeftParentheses, length: 1 },
+                GreenToken { kind: TokenKind::RightParentheses, length: 1 },
             ]
         );
     }
@@ -333,26 +335,26 @@ mod tests {
         assert_eq!(
             lexer.collect::<Vec<_>>(),
             vec![
-                Token::new(TokenKind::Fn, 2),
-                Token::new(TokenKind::Whitespace, 1),
-                Token::new(TokenKind::Identifier, 3),
-                Token::new(TokenKind::LeftParentheses, 1),
-                Token::new(TokenKind::Identifier, 1),
-                Token::new(TokenKind::Colon, 1),
-                Token::new(TokenKind::Whitespace, 1),
-                Token::new(TokenKind::Identifier, 3),
-                Token::new(TokenKind::RightParentheses, 1),
-                Token::new(TokenKind::Whitespace, 1),
-                Token::new(TokenKind::Minus, 1),
-                Token::new(TokenKind::GreaterThan, 1),
-                Token::new(TokenKind::Whitespace, 1),
-                Token::new(TokenKind::Identifier, 3),
-                Token::new(TokenKind::Whitespace, 1),
-                Token::new(TokenKind::LeftBrace, 1),
-                Token::new(TokenKind::Whitespace, 1),
-                Token::new(TokenKind::Identifier, 1),
-                Token::new(TokenKind::Whitespace, 1),
-                Token::new(TokenKind::RightBrace, 1),
+                GreenToken { kind: TokenKind::Fn, length: 2 },
+                GreenToken { kind: TokenKind::Whitespace, length: 1 },
+                GreenToken { kind: TokenKind::Identifier, length: 3 },
+                GreenToken { kind: TokenKind::LeftParentheses, length: 1 },
+                GreenToken { kind: TokenKind::Identifier, length: 1 },
+                GreenToken { kind: TokenKind::Colon, length: 1 },
+                GreenToken { kind: TokenKind::Whitespace, length: 1 },
+                GreenToken { kind: TokenKind::Identifier, length: 3 },
+                GreenToken { kind: TokenKind::RightParentheses, length: 1 },
+                GreenToken { kind: TokenKind::Whitespace, length: 1 },
+                GreenToken { kind: TokenKind::Minus, length: 1 },
+                GreenToken { kind: TokenKind::GreaterThan, length: 1 },
+                GreenToken { kind: TokenKind::Whitespace, length: 1 },
+                GreenToken { kind: TokenKind::Identifier, length: 3 },
+                GreenToken { kind: TokenKind::Whitespace, length: 1 },
+                GreenToken { kind: TokenKind::LeftBrace, length: 1 },
+                GreenToken { kind: TokenKind::Whitespace, length: 1 },
+                GreenToken { kind: TokenKind::Identifier, length: 1 },
+                GreenToken { kind: TokenKind::Whitespace, length: 1 },
+                GreenToken { kind: TokenKind::RightBrace, length: 1 },
             ]
         );
     }
@@ -364,12 +366,12 @@ mod tests {
         assert_eq!(
             lexer.collect::<Vec<_>>(),
             vec![
-                Token::new(TokenKind::Struct, 6),
-                Token::new(TokenKind::Whitespace, 1),
-                Token::new(TokenKind::Identifier, 3),
-                Token::new(TokenKind::Whitespace, 1),
-                Token::new(TokenKind::LeftBrace, 1),
-                Token::new(TokenKind::RightBrace, 1),
+                GreenToken { kind: TokenKind::Struct, length: 6 },
+                GreenToken { kind: TokenKind::Whitespace, length: 1 },
+                GreenToken { kind: TokenKind::Identifier, length: 3 },
+                GreenToken { kind: TokenKind::Whitespace, length: 1 },
+                GreenToken { kind: TokenKind::LeftBrace, length: 1 },
+                GreenToken { kind: TokenKind::RightBrace, length: 1 },
             ]
         )
     }
@@ -379,7 +381,7 @@ mod tests {
         let text = "->";
         let mut lexer = Lexer::new(text);
         let result = lexer.next_kind(TokenKind::RightArrow);
-        assert_eq!(result, Some(Token::new(TokenKind::RightArrow, 2)));
+        assert_eq!(result, Some(GreenToken { kind: TokenKind::RightArrow, length: 2 }));
         assert_eq!(lexer.next(), None);
     }
 
@@ -388,7 +390,7 @@ mod tests {
         let text = "::";
         let mut lexer = Lexer::new(text);
         let result = lexer.next_kind(TokenKind::PathSeparator);
-        assert_eq!(result, Some(Token::new(TokenKind::PathSeparator, 2)));
+        assert_eq!(result, Some(GreenToken { kind: TokenKind::PathSeparator, length: 2 }));
         assert_eq!(lexer.next(), None);
     }
 
@@ -398,7 +400,7 @@ mod tests {
         let mut lexer = Lexer::new(text);
         let result = lexer.next_kind(TokenKind::RightArrow);
         assert_eq!(result, None);
-        assert_eq!(lexer.next(), Some(Token::new(TokenKind::Minus, 1)));
+        assert_eq!(lexer.next(), Some(GreenToken { kind: TokenKind::Minus, length: 1 }));
     }
 
     #[test]
@@ -406,8 +408,8 @@ mod tests {
         let text = "->";
         let mut lexer = Lexer::new(text);
         let result = lexer.peek_kind(TokenKind::RightArrow);
-        assert_eq!(result, Some(Token::new(TokenKind::RightArrow, 2)));
-        assert_eq!(lexer.peek(), Some(Token::new(TokenKind::Minus, 1)));
+        assert_eq!(result, Some(GreenToken { kind: TokenKind::RightArrow, length: 2 }));
+        assert_eq!(lexer.peek(), Some(GreenToken { kind: TokenKind::Minus, length: 1 }));
     }
 
     #[test]
@@ -415,8 +417,8 @@ mod tests {
         let text = "::";
         let mut lexer = Lexer::new(text);
         let result = lexer.peek_kind(TokenKind::PathSeparator);
-        assert_eq!(result, Some(Token::new(TokenKind::PathSeparator, 2)));
-        assert_eq!(lexer.peek(), Some(Token::new(TokenKind::Colon, 1)));
+        assert_eq!(result, Some(GreenToken { kind: TokenKind::PathSeparator, length: 2 }));
+        assert_eq!(lexer.peek(), Some(GreenToken { kind: TokenKind::Colon, length: 1 }));
     }
 
     #[test]
@@ -432,8 +434,8 @@ mod tests {
         let text = "foo ->";
         let mut lexer = Lexer::new(text);
         let result = lexer.peek_kind_at_offset(TokenKind::RightArrow, 2);
-        assert_eq!(result, Some(Token::new(TokenKind::RightArrow, 2)));
-        assert_eq!(lexer.peek(), Some(Token::new(TokenKind::Identifier, 3)));
+        assert_eq!(result, Some(GreenToken { kind: TokenKind::RightArrow, length: 2 }));
+        assert_eq!(lexer.peek(), Some(GreenToken { kind: TokenKind::Identifier, length: 3 }));
     }
 
     #[test]
@@ -441,7 +443,7 @@ mod tests {
         let text = "foo ::";
         let mut lexer = Lexer::new(text);
         let result = lexer.peek_kind_at_offset(TokenKind::PathSeparator, 2);
-        assert_eq!(result, Some(Token::new(TokenKind::PathSeparator, 2)));
+        assert_eq!(result, Some(GreenToken { kind: TokenKind::PathSeparator, length: 2 }));
     }
 
     #[test]
@@ -449,7 +451,7 @@ mod tests {
         let text = "->";
         let mut lexer = Lexer::new(text);
         let result = lexer.peek_kind_at_offset(TokenKind::RightArrow, 0);
-        assert_eq!(result, Some(Token::new(TokenKind::RightArrow, 2)));
+        assert_eq!(result, Some(GreenToken { kind: TokenKind::RightArrow, length: 2 }));
     }
 
     #[test]

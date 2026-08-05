@@ -5,13 +5,13 @@ pub mod query;
 #[cfg(test)]
 mod tests;
 
+use crate::cst::{Cst, TokenKind, TreeKind};
 use crate::cst::lexer::Lexer;
 use crate::cst::parser::event::{CloseMarker, EventStream, OpenMarker};
-use crate::cst::token::TokenKind;
-use crate::cst::tree::{Tree, TreeKind};
 
 /// A parser to convert a stream of tokens into a concrete syntax tree.
 pub struct Parser<'text> {
+    text: &'text str,
     lexer: Lexer<'text>,
     events: EventStream,
 }
@@ -19,13 +19,14 @@ pub struct Parser<'text> {
 impl<'text> Parser<'text> {
     pub fn new(text: &'text str) -> Self {
         Self {
+            text,
             lexer: Lexer::new(text),
             events: EventStream::new(),
         }
     }
 
-    pub fn finish(self) -> Tree {
-        self.events.build()
+    pub fn finish(self) -> Cst {
+        self.events.build(self.text)
     }
 
     /// Open a new node.

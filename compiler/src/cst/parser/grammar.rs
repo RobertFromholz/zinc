@@ -1,7 +1,6 @@
 use crate::cst::parser::event::OpenMarker;
 use crate::cst::parser::Parser;
-use crate::cst::token::TokenKind;
-use crate::cst::tree::TreeKind;
+use crate::cst::{TokenKind, TreeKind};
 
 impl<'text> Parser<'text> {
     pub fn file(&mut self) {

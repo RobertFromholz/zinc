@@ -1,8 +1,8 @@
 use crate::cst::parser::Parser;
-use crate::cst::tree::Tree;
 use crate::query::{Handle, Query};
 use std::fs;
 use std::path::PathBuf;
+use crate::cst::Cst;
 
 pub struct ParseQuery;
 
@@ -14,7 +14,7 @@ pub enum ParseKey {
 
 impl Query for ParseQuery {
     type Key = ParseKey;
-    type Output = Option<Tree>;
+    type Output = Option<Cst>;
 
     fn compute(handle: Handle<'_>, key: &Self::Key) -> Self::Output {
         let content;

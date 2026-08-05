@@ -7,8 +7,7 @@
 //! Using events, we can choose to surround the current node in another node without having to
 //! change the order of events.
 
-use crate::cst::token::Token;
-use crate::cst::tree::{Node, Tree, TreeKind};
+use crate::cst::{Cst, GreenNode, GreenToken, GreenTree, TreeKind};
 
 /// A stream of events.
 ///
@@ -39,7 +38,7 @@ pub enum Event {
     Finish,
 
     /// Append a token to the current node.
-    Token { token: Token },
+    Token { token: GreenToken },
 
     /// Register an error at this point in the stream.
     ///
@@ -52,51 +51,45 @@ impl EventStream {
         Self { events: Vec::new() }
     }
 
-    pub fn build(self) -> Tree {
+    pub fn build(self, text: &str) -> Cst {
+        let mut nodes = Vec::new();
         let mut stack = Vec::new();
         let mut iter = self.into_iter();
-        
+
         for event in &mut iter {
             match event {
-                Event::Start { kind, .. } => stack.push(Tree {
-                    kind,
-                    children: Vec::new(),
-                }),
+                Event::Start { kind, .. } => {
+                    stack.push(nodes.len());
+                    nodes.push(GreenNode::Tree(GreenTree {
+                        kind,
+                        children: 0,
+                    }))
+                }
                 Event::Finish => {
                     let node = stack.pop()
                         .expect("unexpected 'Event::Finish' without corresponding 'Event::Start' event");
-                    match stack.last_mut() {
-                        Some(parent) => {
-                            parent.children.push(Node::Tree(node))
-                        }
-                        None => {
-                            if let Some(event) = iter.next() {
-                                // We are trying to parse an event, but we have already closed
-                                // the top level-node (the file).
-                                panic!("unexpected '{:?}' outside top-level node", event);
-                            }
-                            return node;
-                        }
-                    }
+                    let length = nodes.len();
+                    let GreenNode::Tree(tree) = nodes.get_mut(node).unwrap() else {
+                        // An index in the stack should only ever refer to a tree.
+                        unreachable!()
+                    };
+                    tree.children = length - node - 1;
                 }
                 Event::Token { token } => {
-                    match stack.last_mut() {
-                        Some(parent) => {
-                            parent.children.push(Node::Token(token));
-                        }
-                        None => {
-                            panic!("unexpected '{:?}' outside top-level node", Event::Token { token });
-                        }
-                    }
+                    nodes.push(GreenNode::Token(token));
                 }
                 Event::Error { message } => {
                     let node = stack.last_mut()
                         .expect("unexpected 'Event::Error' without corresponding 'Event::Start' event");
-                    node.children.push(Node::Error(message));
+                    todo!()
                 }
             }
         }
-        panic!("expected 'Event::Finish'")
+        assert!(stack.is_empty());
+        Cst {
+            text: text.to_owned(),
+            nodes,
+        }
     }
 
     /// Returns whether this event stream is empty.
@@ -140,7 +133,7 @@ impl EventStream {
     /// Consume a token.
     ///
     /// The token is consumed by the previously opened node.
-    pub fn consume(&mut self, token: Token) {
+    pub fn consume(&mut self, token: GreenToken) {
         self.events.push(Some(Event::Token { token }));
     }
 
@@ -230,7 +223,7 @@ impl<'text> Iterator for IntoIter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::cst::token::TokenKind;
+    use crate::cst::TokenKind;
 
     fn compare_event_stream(build: impl FnOnce(&mut EventStream), events: Vec<Event>) {
         let mut stream = EventStream::new();
@@ -242,11 +235,11 @@ mod tests {
     fn test_iterate_events() {
         compare_event_stream(|stream| {
             let marker = stream.open();
-            stream.consume(Token::new(TokenKind::Identifier, 3));
+            stream.consume(GreenToken { kind: TokenKind::Identifier, length: 3 });
             stream.close(marker, TreeKind::File);
         }, vec![
             Event::Start { kind: TreeKind::File, previous: None },
-            Event::Token { token: Token::new(TokenKind::Identifier, 3) },
+            Event::Token { token: GreenToken { kind: TokenKind::Identifier, length: 3 } },
             Event::Finish
         ]);
     }
@@ -255,17 +248,20 @@ mod tests {
     fn test_iterate_non_linear_event() {
         compare_event_stream(|stream| {
             let marker = stream.open();
-            stream.consume(Token::new(TokenKind::Identifier, 3));
-            let marker = stream.close(marker, TreeKind::Module);
+            stream.consume(GreenToken {
+                kind: TokenKind::Identifier,
+                length: 3
+            });
+            let marker = stream.close(marker, TreeKind::Struct);
             let marker = stream.open_before(marker);
-            stream.consume(Token::new(TokenKind::Identifier, 3));
+            stream.consume(GreenToken { kind: TokenKind::Identifier, length: 3 });
             stream.close(marker, TreeKind::File);
         }, vec![
             Event::Start { kind: TreeKind::File, previous: None },
-            Event::Start { kind: TreeKind::Module, previous: Some(3) },
-            Event::Token { token: Token::new(TokenKind::Identifier, 3) },
+            Event::Start { kind: TreeKind::Struct, previous: Some(3) },
+            Event::Token { token: GreenToken { kind: TokenKind::Identifier, length: 3 } },
             Event::Finish,
-            Event::Token { token: Token::new(TokenKind::Identifier, 3) },
+            Event::Token { token: GreenToken { kind: TokenKind::Identifier, length: 3 } },
             Event::Finish,
         ])
     }
@@ -278,12 +274,12 @@ mod tests {
             let marker = stream.open_before(marker);
             let marker = stream.close(marker, TreeKind::Struct);
             let marker = stream.open_before(marker);
-            let marker = stream.close(marker, TreeKind::Module);
+            let marker = stream.close(marker, TreeKind::Field);
             let marker = stream.open_before(marker);
             stream.close(marker, TreeKind::File);
         }, vec![
             Event::Start { kind: TreeKind::File, previous: None },
-            Event::Start { kind: TreeKind::Module, previous: Some(6) },
+            Event::Start { kind: TreeKind::Field, previous: Some(6) },
             Event::Start { kind: TreeKind::Struct, previous: Some(4) },
             Event::Start { kind: TreeKind::Function, previous: Some(2) },
             Event::Finish,
@@ -297,16 +293,18 @@ mod tests {
     fn build_event_stream() {
         let mut stream = EventStream::new();
         let marker = stream.open();
-        stream.consume(Token::new(TokenKind::Identifier, 3));
+        stream.consume(GreenToken {
+            kind: TokenKind::Identifier,
+            length: 3
+        });
         stream.close(marker, TreeKind::File);
-        let tree = stream.build();
+        let text = "abc";
+        let tree = stream.build(text);
         assert_eq!(
-            Tree {
-                kind: TreeKind::File,
-                children: vec![
-                    Node::Token(Token::new(TokenKind::Identifier, 3))
-                ]
-            },
+            Cst::empty(text)
+                .tree(TreeKind::File, |builder| builder
+                    .token(TokenKind::Identifier, 3)
+                ),
             tree
         );
     }

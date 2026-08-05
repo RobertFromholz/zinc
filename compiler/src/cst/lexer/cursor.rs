@@ -6,7 +6,6 @@
 //! The lexer instructs the cursor when to consume characters and when to start a new lexeme.
 
 use std::str::Chars;
-use crate::cst::Span;
 
 /// A `Cursor` reads source code and converts it into a stream of lexeme.
 ///
@@ -15,17 +14,21 @@ use crate::cst::Span;
 /// The lexer is responsible for instructing the cursor when to consume characters and when to
 /// start a new lexeme. 
 pub struct Cursor<'text> {
-    text: &'text str,
     iterator: Chars<'text>,
     start_offset: usize,
     length: usize,
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub struct Lexeme {
+    pub start_offset: usize,
+    pub length: usize,
 }
 
 impl<'text> Cursor<'text> {
     /// Create a new `Cursor` to read the given text.
     pub fn new(text: &'text str) -> Self {
         Self {
-            text,
             iterator: text.chars(),
             start_offset: 0,
             length: 0,
@@ -33,12 +36,15 @@ impl<'text> Cursor<'text> {
     }
 
     /// Returns the current lexeme.
-    pub fn current(&self) -> Span<'text> {
-        Span::new(self.text, self.start_offset..self.start_offset + self.length)
+    pub fn current(&self) -> Lexeme {
+        Lexeme {
+            start_offset: self.start_offset,
+            length: self.length,
+        }
     }
 
-    /// Close the current lexeme. The current lexeme is returned.
-    pub fn close(&mut self) -> Span<'text> {
+    /// Close the current lexeme. Returns the current lexeme.
+    pub fn close(&mut self) -> Lexeme {
         let current = self.current();
         self.start_offset += self.length;
         self.length = 0;
@@ -55,16 +61,10 @@ impl<'text> Cursor<'text> {
     }
 
     /// If the next character matches the given predicate, consume it into the current lexeme.
-    ///
-    /// Returns the number of characters consumed by the predicate.
-    pub fn consume_while(&mut self, predicate: impl Fn(char) -> bool) -> usize {
-        // TODO: Evaluate whether to return usize or ()
-        let mut consumed = 0;
+    pub fn consume_while(&mut self, predicate: impl Fn(char) -> bool) {
         while self.peek().is_some_and(|next| predicate(next)) {
             self.consume();
-            consumed += 1;
         }
-        consumed
     }
 
     /// Return the next character without consuming it.
@@ -88,7 +88,7 @@ mod tests {
     fn test_close_lexeme_without_consuming() {
         let text = "";
         let mut cursor = Cursor::new(text);
-        assert_eq!(cursor.close(), Span::new(text, 0..0));
+        assert_eq!(cursor.close(), Lexeme { start_offset: 0, length: 0 });
     }
 
     #[test]
@@ -96,7 +96,7 @@ mod tests {
         let text = "";
         let mut cursor = Cursor::new(text);
         assert_eq!(cursor.consume(), None);
-        assert_eq!(cursor.close(), Span::new(text, 0..0));
+        assert_eq!(cursor.close(), Lexeme { start_offset: 0, length: 0 });
     }
 
     #[test]
@@ -104,15 +104,15 @@ mod tests {
         let text = "abc";
         let mut cursor = Cursor::new(text);
         assert_eq!(cursor.consume(), Some('a'));
-        assert_eq!(cursor.close(), Span::new(text, 0..1));
+        assert_eq!(cursor.close(), Lexeme { start_offset: 0, length: 1 });
     }
 
     #[test]
     fn test_consume_while() {
         let text = "aaabc";
         let mut cursor = Cursor::new(text);
-        assert_eq!(cursor.consume_while(|next| next == 'a'), 3);
-        assert_eq!(cursor.close(), Span::new(text, 0..3));
+        cursor.consume_while(|next| next == 'a');
+        assert_eq!(cursor.close(), Lexeme { start_offset: 0, length: 3 });
     }
 
     #[test]
@@ -123,7 +123,7 @@ mod tests {
         assert_eq!(cursor.peek(), Some('a'));
         assert_eq!(cursor.consume(), Some('a'));
         assert_eq!(cursor.peek(), Some('b'));
-        assert_eq!(cursor.close(), Span::new(text, 0..1))
+        assert_eq!(cursor.close(), Lexeme { start_offset: 0, length: 1 })
     }
 
     #[test]
@@ -135,7 +135,7 @@ mod tests {
         assert_eq!(cursor.consume(), Some('a'));
         assert_eq!(cursor.peek_at_offset(0), Some('b'));
         assert_eq!(cursor.peek_at_offset(1), Some('c'));
-        assert_eq!(cursor.close(), Span::new(text, 0..1))
+        assert_eq!(cursor.close(), Lexeme { start_offset: 0, length: 1 })
     }
 
     #[test]
@@ -145,6 +145,6 @@ mod tests {
         cursor.consume_while(|_| true);
         // We currently don't handle multiple characters joined together.
         // This might change in the future.
-        assert_eq!(cursor.close(), Span::new(text, 0..));
+        assert_eq!(cursor.close(), Lexeme { start_offset: 0, length: text.len() });
     }
 }
