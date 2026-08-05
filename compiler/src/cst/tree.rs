@@ -28,7 +28,21 @@ impl Tree {
 impl fmt::Display for Tree {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         if f.alternate() {
-            write!(f, "{}: {}", self.start_offset, self.kind)
+            write!(f, "{} {{", self.kind)?;
+            if self.children.is_empty() {
+                write!(f, "}}")
+            } else {
+                writeln!(f, "")?;
+                for child in &self.children {
+                    let text = format!("{}", child)
+                        .lines()
+                        .map(|line| format!("\t{}", line))
+                        .collect::<Vec<_>>()
+                        .join("\n");
+                    writeln!(f, "{}", text)?;
+                }
+                writeln!(f, "}}")
+            }
         } else {
             write!(f, "{}", self.kind)
         }
